@@ -1,0 +1,57 @@
+{% load url from future %}
+{% load friendshiptags endless timesince_threshold %}
+{% lazy_paginate 4,20 notifications%}
+{% for notice in notifications %}
+<div class="drop-shadow-lt notice alert alert-{% if not notice.unread %}danger{%else%}success-dark{% endif %}"
+	style="padding:3px;margin-bottom:2px;">
+{% if not notice.unread %}
+  	<a class="close pull-right" href="{% url 'delete' notice.slug %}">
+    <i class="glyphicon glyphicon-remove-sign border-sm lo-red alert-danger"></i>
+{% else %}
+  	<a class="close pull-right" href="{% url 'mark_as_read' notice.slug %}">
+    <i class="glyphicon glyphicon-remove-sign border-sm lo-white"></i>
+{% endif %}
+  </a>
+  
+  <h5>
+    <a href="{% url 'profile' notice.actor.username %}" 
+    	class="low-opac" 
+    	data-toggle="tooltip" 
+    	data-original-title="Visit {{notice.actor.username}}'s profile">
+    <img class="drop-shadow-lt n_img_round" src="{{ notice.actor.profile.profile_image_url }}" style="margin-right:3px"/>
+    </a> {{notice.actor.username}}        
+{% if notice.target.text or notice.action_object.text %}
+    <a href="{% if notice.action_object.text %}{% url 'post_detail' notice.action_object.id %}{%else%}{% url 'post_detail' notice.target.id %}{%endif%}">{{ notice.verb }}</a>
+    	{% if notice.target.picture.file.url != None %}
+	      <div class="pull-right"> 
+		      <img class="n_img_round drop-shadow"
+		          src=" {{ notice.target.get_thumbnail_picture_url }}"
+	              style="margin-right:3px;margin-right:3px;"/></a>
+		  </div>
+    	{% endif %}
+    	{% if notice.action_object.picture.file.url != None %}
+	      <div class="pull-right"> 
+		      <img class="n_img_round drop-shadow"
+		          src=" {{ notice.action_object.get_thumbnail_picture_url }}"
+	              style="margin-right:3px;margin-right:3px;"/></a>
+		  </div>
+    	{% endif %}
+    {% elif notice.action_object.rejected != None %}
+    {{ notice.verb}}
+    <ul class="nav nav-pills users" style="display:inline-block">
+		<li class="friends drop-shadow">{% are_friends request.user notice.action_object.to_user %}</li>
+		<li class="follows drop-shadow">{% is_following request.user notice.action_object.from_user %}</li>
+	</ul>
+    {% else %}
+    {{ notice.verb}}
+    {% endif %}
+    
+  </h5>
+  
+  <p>{{ notice.timesince }} ago</p>
+  
+  <p>{{ notice.description|linebreaksbr }}</p>
+  
+</div>
+{% endfor %}
+{% show_more %}

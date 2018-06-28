@@ -1,0 +1,1 @@
+export const LIKES_URL = "likes/"

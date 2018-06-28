@@ -1,0 +1,39 @@
+{% extends "demo/base.html" %}
+{% load wagtailcore_tags %}
+
+
+{% block heading %}
+  <div class="page-header">
+
+
+    <span class="border-lg lobster lo-red">
+      {{ self.title }}
+    </span>
+      {% if self.date %}
+      <br/>
+      <span class="border-sm lobster lo-white">
+      	{{ self.date }}
+      </span>{% endif %}
+
+    <div class="row">
+      <hr class="fancy"/>
+      {% for tag in self.tags.all %}
+        <a href="{% pageurl self.blog_index %}?tag={{ tag }}"
+           class="btn btn-success drop-shadow btn-xs">
+          <i class="glyphicon glyphicon-tag"></i> {{ tag }}
+        </a>
+      {% empty %}
+      	<span class="border-sm lobster lo-yellow">No tags</span>
+      {% endfor %}
+      <hr class="fancy"/>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+    {% include "demo/includes/carousel.html" with carousel_items=self.carousel_items.all only %}
+
+    {% include "demo/includes/body.html" with body=self.body only %}
+
+    {% include "demo/includes/related_links.html" with related_links=self.related_links.all only %}
+{% endblock %}

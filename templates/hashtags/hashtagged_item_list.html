@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load feedback_tags %}
+{% block content %}
+{% feedback_form %}
+<div id="posts">
+<h2 class="border-md">#{{ hashtag.name }}</h2>
+{% include page_template %}
+</div>
+{% endblock %}
+{% block tail_js %}
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}fluent_comments/css/ajaxcomments.css" />
+<script type="text/javascript" src="{{ STATIC_URL }}fluent_comments/js/ajaxcomments.js"></script>
+<script type="text/javascript" src="{{ STATIC_URL }}likes/includes/likes.js"></script>
+<script src="{{ STATIC_URL }}el_pagination/js/endless-pagination.js"></script>
+<script>
+jQuery.browser = {};
+(function () {
+    jQuery.browser.msie = false;
+    jQuery.browser.version = 0;
+    if (navigator.userAgent.match(/MSIE ([0-9]+)\./)) {
+        jQuery.browser.msie = true;
+        jQuery.browser.version = RegExp.$1;
+    }
+});
+$(document).ready(function() {
+	$('#posts').endlessPaginate({
+		paginateOnScroll: true,
+		onCompleted: function(context, fragment) {
+			{% include 'includes/scripts/ajax_all.html' %}
+      	}
+   });
+});
+				
+      		
+</script>
+
+{% endblock %}

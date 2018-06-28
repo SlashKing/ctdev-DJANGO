@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load feedback_tags %}
+{% load render_bundle from webpack_loader %}
+{% block content %}
+{% comment %}
+{% feedback_form %}
+{% endcomment %}
+<script id="props" type="application/json">
+
+{
+	"user": {{user_sub|safe}},
+	"request_user": {{request_user|safe}}
+}
+</script>
+<div id="App1"></div>
+{% render_bundle 'vendors' %}
+{% render_bundle 'App1'%}
+{% endblock %}
+{% block tail_js %}
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}ReactCrop/css/ReactCrop.css" />
+<script type="text/javascript" href="{{ STATIC_URL }}ReactCrop/js/ReactCrop.js"></script>
+<script type="text/javascript">
+jQuery.browser = {};
+(function () {
+    jQuery.browser.msie = false;
+    jQuery.browser.version = 0;
+    if (navigator.userAgent.match(/MSIE ([0-9]+)\./)) {
+        jQuery.browser.msie = true;
+        jQuery.browser.version = RegExp.$1;
+    }
+    
+});
+</script>
+{% endblock %}
+{% comment %}
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}fluent_comments/css/ajaxcomments.css" />
+{% inplace_static %}
+<script type="text/javascript" src="{{ STATIC_URL }}fluent_comments/js/ajaxcomments.js"></script>
+<script type="text/javascript" src="{{ STATIC_URL }}likes/includes/likes.js"></script>
+<script src="{{ STATIC_URL }}endless_pagination/js/endless-pagination.js"></script>
+<script>
+
+$(document).ready(function() {
+	$('#posts').endlessPaginate({
+				paginateOnScroll: true,
+				onCompleted: function(context, fragment) {
+					{% include 'includes/scripts/ajax_all.html' %}
+      		}
+   });
+});
+</script>
+{% endcomment %}
+{% comment %}
+{% if user_sub.profile.is_private == False %}
+<div class="text-center">
+	<a href="{% if request.user == user_sub %}
+		{% url 'edit_profile' %}{%endif%}" 
+		class="p_cover low-opac">
+		<img class="drop-shadow"src="{{MEDIA_URL}}
+		{% if user_sub.profile.cover_image != None %}
+			{{ user_sub.profile.cover_image }}
+		{%else%}users/cover/none.jpg
+		{%endif%}">
+		<i class="low-opac lo-white glyphicon glyphicon-camera c-cam" 
+		style="{% if request.user != user_sub %}display:none{% endif %}"></i>
+		
+	</a>
+</div>
+<a href="{% if request.user == user_sub %}{% url 'edit_profile_image' %}{% endif %}">
+	<img class="p_img_round img-thumbnail drop-shadow" 
+  	src="{{ user_sub.profile.profile_image_url }}"/>
+  	
+  	<i class="glyphicon glyphicon-camera border-md p-cam lo-white low-opac pull-left" 
+  		style="{% if request.user != user_sub %}display:none{% endif %}"></i>
+</a>
+<span class="user-actions pull-right text-right" 
+	style="width:100%;min-height:55px;">
+	<ul class="nav nav-pills users profile ">
+		<li class="border-md lobster lo-white">{{ user_sub.username }}</li>
+	{% if request.user != user_sub %}
+		<li class="friends drop-shadow">{% are_friends request.user user_sub %}</li>
+		<li class="follows drop-shadow">{% is_following request.user user_sub %}</li>
+	{% endif %}
+	</ul>
+	{% include 'includes/user_stats.html' %}	
+</span>
+{% if request.user == user_sub %}
+<div class="text-center">
+	<form method="post" action="" enctype="multipart/form-data">
+		{% csrf_token %}
+		<div class="input-group controls">
+			<div class="input-group-btn">
+				<button class="btn btn-success" type="submit">
+					<i class="glyphicon glyphicon-pencil border-sm lo-white "></i>
+				</button>
+			</div>	
+		{{ form.text }}
+		</div>
+		{{ form.picture}}
+	</form>
+</div>
+{% endif %}
+<div id="posts" class="endless_page_template">
+	{% include page_template %}
+</div>
+{% else %}
+<div class="alert alert-danger text-center border-md">
+{% trans "This user's profile has been hidden" %}
+</div>
+{% endif %}
+{% endcomment %}

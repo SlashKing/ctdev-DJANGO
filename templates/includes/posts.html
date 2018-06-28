@@ -1,0 +1,86 @@
+{% comment %}{% load i18n comments hashtags_tags friendshiptags likes_inclusion_tags timesince_threshold inplace_edit%}
+{% lazy_paginate 4,20 posts%}
+{% for post in posts %}
+
+<div class="post-{{ post.pk }}">
+<div>
+<hr class="fancy" />
+<ul class="col-xs-9 list-inline pad-lr-3 text-left">
+	<li>
+		<div class="border-sm lo-white lobster">
+			<a href="{% url 'profile' post.user.username %}" 
+				data-toggle="tooltip" data-original-title="Visit Profile"
+				class="no-dec">
+				<img class="u_img_round drop-shadow low-opac"
+					src="{{ post.user.profile.profile_image_url }}"/>
+			</a>
+			{{ post.user.username }}
+		</div>
+	</li>
+	<li class="dropdown">
+		<i style="left: -4px;top:12px; font-size:42px" 
+			data-toggle="dropdown" 
+			class="dropdown-toggle glyphicon glyphicon-option-vertical border-sm lo-red low-opac "> 
+			</i>
+		<ul class="dropdown-menu" role="menu">
+			{% if request.user != post.user %}
+			<li><a class="feedbackSnippet" href="{% url "feedback_form_content_object" c_type='post' obj_id=post.pk %}">Report Post</a></li>
+			<li><a class="feedbackSnippet" href="{% url "feedback_form_content_object" c_type='user' obj_id=post.user.pk %}">Report User</a></li>
+			{%else%}
+			<li>
+				<a href="{% url "post_remove" post=post.pk %}" data-post="{{post.pk}}" 
+					class="postRemove">
+						{% trans 'Remove Post' %}
+				</a>
+			</li>
+		{% endif %}
+		</ul>
+	</li>
+
+</ul>
+<h4 class="col-xs-3 pad-lr-3 post-date text-right">
+	{{ post.pub_date | timesince_threshold}}
+</h4>
+<hr class='fancy'/>
+</div>
+<p class="post-container drop-shadow border-md lo-white lobster {% if post.user == request.user %}mine{% endif %}">
+{% if post.user == request.user %}
+	{% inplace_edit "post.text|safe" autoSave="1", disableClick="0", eventInplaceEdit="click" %}
+{% else %}
+	{{ post.text | urlize_hashtags | urlize_mentions }}
+{% endif %}
+</p>
+{%if post.picture != None %}
+	<img class="img-thumbnail drop-shadow" src="{{MEDIA_URL}}{{ post.picture }}" />
+{%else%}
+{%endif%}
+<hr class="fancy" />
+<div>
+<ul class="list-inline text-center">
+	<li>
+		<div class="votes">
+			{% likes post %}
+		</div>
+	</li>
+	<li>
+		<a class="drop-shadow-lt border-sm lo-white btn-sm btn btn-success lobster" data-toggle="tooltip" data-original-title="Expand Comments">
+			<div class="comment-toggle" data-toggle="collapse" data-target="#comments-{{post.id}}">
+				Comments {% get_comment_count for post as com_count %}
+				(<span id="comment-count-{{post.id}}">{{ com_count }}</span>)
+			</div>
+		</a>
+	</li>
+</ul>
+</div>
+<hr class="fancy" />
+
+<div class="comments static">
+	{% render_comment_form for post %}
+		<div class="comments full">
+	{% render_comment_list for post %}
+	</div>
+</div>
+</div>
+{% endfor %}
+{% show_more %}
+{% endcomment %}

@@ -1,0 +1,27 @@
+{% load endless %}
+{% load friendshiptags %}
+{% lazy_paginate 20,40 requests%}
+{% for requested in requests %}
+<li>
+{% if requested %}
+    <ul class="nav nav-pills users">
+        <li class="va-nav-pill">
+            <a href="{% url 'profile' requested.from_user.username %}">
+            	<img class="sm_img_round drop-shadow-lt" 
+            		src="{{ requested.from_user.profile.profile_image_url }}"/>
+            	<span class="border-sm lobster lo-white" style="position:relative;top:4px;margin-left:3px">
+            		{{ requested.from_user.username }}
+            	</span>
+            </a>
+        </li>
+         <li class="friends drop-shadow-lt">{% are_friends request.user requested.from_user %}</li>     
+         <li class="follows drop-shadow-lt">{% is_following request.user requested.from_user %}</li>
+    </ul>
+    <hr class="fancy"/>
+    {% else %}
+    <div class="border-sm lobster lo-white">Sorry, no friendship requests</div>
+    {% endif %}
+</li>
+    
+{% endfor %}
+{% show_more %}

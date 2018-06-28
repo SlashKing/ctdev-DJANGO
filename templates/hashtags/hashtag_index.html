@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+<h1 class="border-md">Hashtags</h1>
+{% include 'includes/search_bar.html' %}
+<hr class="fancy"/>
+<ul id="hashtags" class="endless_page_template">
+{% include page_template %}
+</div>
+{% endblock %}
+
+{% block tail_js %}
+
+<script src="{{ STATIC_URL }}el_pagination/js/endless-pagination.js"></script>
+
+<script>$('#hashtags').endlessPaginate({paginateOnScroll: true});
+$('.auto').on("input", function() {
+	var $value = $(this).val();
+   if ($value.length >= 2){
+    $.get('{% url "ht_autocomplete"%}/?q=' + $value, {}, function(data){
+        $('#hashtags').html(data);
+    	$('#hashtags').endlessPaginate({
+		paginateOnScroll: true
+    });
+  });
+ }
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,33 @@
+{% load comments i18n crispy_forms_tags picture_comments_tags %}
+
+{% if not form.target_object|comments_are_open %}
+<p>{% trans "Comments are closed." %}</p>
+{% else %}
+<form id="comment-form-{{ form.target_object.pk }}" 
+    data-object-id="{{ form.target_object.pk }}" 
+    action="{% comment_form_target %}" 
+    method="post" class="js-comments-form comments-form form-horizontal"
+    data-ajax-action="{% url 'comments-post-comment-ajax' %}">
+{% csrf_token %}
+{% if next %}
+<div><input type="hidden" name="next" value="{{ next }}" /></div>
+{% endif %}
+<div class="comment input-group controls">
+	<div class="input-group-btn">
+		<button type="submit" class="btn btn-success ">
+			<i class="glyphicon glyphicon-comment lo-white border-sm"></i> 
+		</button>
+	</div>
+	<textarea name="comment" 
+		class="form-control" 
+		maxlength="420"
+		Placeholder="Comment..."
+		style="height:43px;"></textarea>
+{{ form.object_pk | as_crispy_field}}
+{{ form.timestamp | as_crispy_field}}
+{{ form.security_hash | as_crispy_field}}
+{{ form.content_type | as_crispy_field}}
+{% ajax_comment_tags for form.target_object %}
+</div>
+</form>
+{% endif %}

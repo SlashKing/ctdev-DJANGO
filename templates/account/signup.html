@@ -1,0 +1,139 @@
+{% extends "account/base.html" %}
+{% load crispy_forms_tags staticfiles socialaccount %}
+{% load i18n %}
+
+{% block title %}{% trans "Register" %} to the 420Withme Cannabis Community{% endblock %}
+
+{% block content %}
+<div class="text-center">
+<span>
+	<img src="{% static 'img/twitter-big.png' %}" 
+    	class="round-120 img-thumbnail drop-shadow">
+</span>
+</div>
+<div class="inset drop-shadow">
+    <button 
+    	class="btn btn-success border-lg lobster lo-yellow drop-shadow btn-lg" 
+    	data-toggle="modal" 
+    	data-target="#myModal">
+  		{% trans "Sign Up" %}
+	</button>
+	<hr class="fancy"/>
+	<a class="drop-shadow" href="{% provider_login_url "facebook" method="js_sdk" %}"><div class="fb"></div></a>
+</div>
+<!-- Modal -->
+<div class="modal fade" 
+	id="myModal" tabindex="-1" 
+	role="dialog" 
+	aria-labelledby="myModalLabel" 
+	aria-hidden="true">
+  <div class="modal-dialog modal-vertical-centered">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <button type="button" 
+        	class="close border-sm lo-red glyphicon glyphicon-remove" 
+        	data-dismiss="modal" aria-hidden="true">
+        </button>
+        <span class="modal-title lobster border-lg" id="myModalLabel">
+        	{% trans "Sign Up" %}
+        </span>
+      </div>
+      <div class="modal-body">
+      <form class="row-fluid signup form-controls text-center" 
+      	id="signup_form"  
+      	method="post" 
+      	action="{% url 'account_signup' %}">
+          {% csrf_token %}
+            {{ form | crispy }}
+  			<input id="startLat" type="hidden" name="startLat" value="0" /> 
+  			<input id="startLon" type="hidden" name="startLon" value="0" /> 
+          {% if redirect_field_value %}
+          <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+          {% endif %}
+          <button style="margin-top:7px" class="btn btn-info lobster drop-shadow lo-white border-md btn-lg" type="submit">
+          	{% trans "Sign Up" %}
+          	</button>
+        <div class="footnote">
+            Already have an account? <a href="{{ login_url }}">Sign In</a>
+        </div>
+        </form>
+
+      </div>
+      <div class="modal-footer">
+   		<a class="drop-shadow" href="{% provider_login_url "facebook" method="js_sdk" %}"><div class="fb"></div></a>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+</div>
+{% include "socialaccount/snippets/login_extra.html" %}
+        
+{% endblock %}
+{% block tail_js %}
+<script type="text/javascript">
+window.onload = function() {
+var d = new Date()
+var curr_date = d.getDate();
+var curr_month = d.getMonth() + 1;
+
+var curr_year = d.getFullYear();
+
+curr_month = curr_month + "";
+if(curr_month.length == 1){
+    curr_month = "0" + curr_month;  
+}
+
+curr_date = curr_date + "";
+if(curr_date.length == 1){
+    curr_date = "0" + curr_date;    
+}
+
+var dateString = (curr_year-18) + '-' + curr_month + '-' + curr_date
+console.log(dateString)
+
+var stateLabel = $('label[for="id_state"]')
+var stateId = $('#id_state')
+
+stateLabel.html('State').hide()
+stateId.hide()
+
+$(".datepicker" ).val(dateString)
+//.datepicker({
+ // dateFormat: "yy-mm-dd",changeYear: true, changeMonth:true,defaultDate: dateString});
+ 
+$('#id_country').on('change',function(e){
+    var optionSelected = $(this).val();
+    if (optionSelected == "US"){
+    	stateLabel.html('State *').show()
+  		stateId.show();
+ 	}else{
+ 		stateLabel.hide()
+  		stateId.hide();
+ 	
+ 	}
+});
+  var startPos;
+  var geoOptions = {
+    timeout: 10 * 1000,
+    enableHighAccuracy: true,
+    maximumAge: 5 * 60 * 1000,
+  }
+  var geoSuccess = function(position) {
+    startPos = position;
+    $('#startLat').val(startPos.coords.latitude);
+    $('#startLon').val(startPos.coords.longitude); 
+  };
+  var geoError = function(error) {
+    console.log('Error occurred. Error code: ' + error.code);
+    // error.code can be:
+    //   0: unknown error
+    //   1: permission denied
+    //   2: position unavailable (error response from location provider)
+    //   3: timed out
+  };
+
+  navigator.geolocation.getCurrentPosition(geoSuccess, geoError, geoOptions);
+};
+</script>
+{% endblock %}
+

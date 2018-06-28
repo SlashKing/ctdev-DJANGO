@@ -1,0 +1,25 @@
+{% load endless %}
+{% load friendshiptags %}
+{% lazy_paginate 20,40 friends %}
+{% for friend in friends %}
+<li>{% if friend.to_user %}
+        <ul class="nav nav-pills users">
+        	
+            <li class="va-nav-pill">
+            	<a class="class="border-sm lobster lo-white" href="{% url 'profile' friend.to_user.username %}">
+            		<img class="sm_img_round drop-shadow-lt" 
+            			style="margin-bottom:3px;float:none;" 
+            			src="{{ friend.to_user.profile.profile_image_url }}"/>
+            				<span class="border-sm lobster lo-white" style="position:relative;top:4px;margin-left:3px">
+            			{{ friend.to_user.username }}
+            		</span></a>
+            </li>
+            <li class="friends drop-shadow-lt">{% are_friends request.user friend.to_user %}
+            </li>     
+            <li class="follows drop-shadow-lt">{% is_following request.user friend.to_user %}</li>
+        </ul>
+        <hr class="fancy"/>
+    {% endif %}
+    </li>
+{% endfor %}
+{% show_more %}

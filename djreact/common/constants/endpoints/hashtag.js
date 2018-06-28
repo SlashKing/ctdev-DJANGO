@@ -1,0 +1,1 @@
+export const HASHTAGS_URL = "hashtags\/"

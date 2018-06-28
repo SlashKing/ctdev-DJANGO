@@ -1,0 +1,141 @@
+{% extends "account/base.html" %}
+{% load i18n account crispy_forms_tags socialaccount staticfiles  %}
+{% block head_title %}{% trans "Sign In" %} | 420WithMe {% endblock %}
+
+{% block content %}
+<div class="text-center">
+	<span>
+		<img src="{% static 'img/twitter-big.png' %}" 
+    		class="round-120 img-thumbnail drop-shadow">
+	</span>
+</div>
+<div class="inset drop-shadow">
+    <button class="btn btn-lg btn-success lobster lo-yellow border-lg drop-shadow" data-toggle="modal" data-target="#myModal">
+  		{% trans "Login" %}
+	</button>
+	<button class="btn btn-md btn-primary lobster lo-white border-lg drop-shadow" onclick="window.location.href='../signup'">
+		{% trans "Sign Up" %}
+	</button>
+	<hr class="fancy"/>
+    <a class="drop-shadow" href="{% provider_login_url "facebook" method="js_sdk" %}"><div class="fb"></div></a>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-vertical-centered">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <button type="button" 
+        	class="close border-sm lo-red glyphicon glyphicon-remove" 
+        	data-dismiss="modal" aria-hidden="true">
+        </button>
+        <span class="modal-title lobster border-lg" id="myModalLabel">{% trans "Login" %}</span>
+      </div>
+      <div class="modal-body">
+      <form id="loginForm" class="row-fluid login form-controls text-center" method="POST" action="{% url 'account_login' %}">
+          {% csrf_token %}
+            {%if form.non_field_errors%}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{%endif%}
+            {{form.login | as_crispy_field }}
+            {%if form.login.errors%}<div class="alert alert-danger">{{ form.login.errors }}</div>{%endif%}<br>
+            {{form.password | as_crispy_field }}
+            {%if form.password.errors%}<div class="alert alert-danger">{{ form.password.errors }}</div>{%endif%}
+            <div class="remember-forgot-section text-center">
+                <input id="id_remember" name="remember" type="checkbox" />
+                <label for="id_remember">Remember Me</label>
+                <a class="forgot" href="{% url 'account_reset_password' %}">{% trans "Forgot Password?" %}</a>
+            </div>
+          {% if redirect_field_value %}
+          	<input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value}}" />
+          {% endif %}
+
+          <button class="btn btn-info lobster drop-shadow border-md lo-white btn-lg" type="submit">
+          	{% trans "Sign In" %}
+          </button>
+        <div class="footnote">
+            Don't have an account? <br/>Login with Facebook below or <a href="{% url 'account_signup' %}">Sign Up</a>
+        </div>
+        </form>
+
+      </div>
+      <div class="modal-footer">
+		<a  class="drop-shadow" href="{% provider_login_url "facebook" method="oauth2" %}"><div class="fb"></div></a>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+    {% include "socialaccount/snippets/login_extra.html" %}
+<script type="text/javascript">
+function logout() {
+        delete localStorage.token
+    }
+
+    function loggedIn() {
+        return !!localStorage.token
+    }
+	function getCookie(cname) {
+		var name = cname + "=";
+		var ca = document.cookie.split(';');
+		for(var i=0; i<ca.length; i++) {
+			var c = ca[i];
+			while (c.charAt(0)==' ') c = c.substring(1);
+			if (c.indexOf(name) != -1) return c.substring(name.length,c.length);
+		}
+		return "";
+	}
+function getToken(username, pass, cb) {
+        jQuery.ajax({
+            type: 'POST',
+            url: '/rest-auth/login/',
+            data: {
+                username: username,
+                password: pass
+            },
+			
+            success: function(res){
+                localStorage.setItem('token', res.token);
+                cb({
+                    authenticated: true,
+                    token: res.token,
+                })
+            },
+            error: (xhr, status, err) => {
+                cb({
+                    authenticated: false
+                })
+            },
+		crossDomain:false,
+		beforeSend: function(jqXHR, settings) {
+				jqXHR.setRequestHeader("X-CSRFToken", localStorage.cookie);
+			}
+        })
+    }
+   function login(username, pass, form, cb) {
+        getToken(username, pass, (res) => {
+            if (res.authenticated) {
+				form.submit();
+                if (cb) cb(true)
+            } else {
+                if (cb) cb(false)
+            }
+        })
+    }     
+window.onload = function() {
+	if (localStorage) {
+		localStorage.setItem('cookie', getCookie('csrftoken'));
+		var form = document.getElementById('loginForm')
+		// Add an event listener for form submissions
+		form.addEventListener('submit', function(e) {
+				e.preventDefault();
+				// Get the value of the name field.
+				var name = document.getElementById('id_login').value;
+				var pass = document.getElementById('id_password').value;
+				// Save the name in localStorage.
+				localStorage.setItem('username', name);
+				login(name,pass,form);
+		});
+	}
+
+  }
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load url from future %}
+{% block content %} 
+<div class="text-center">
+<h1 class="border-md">Requests</h1>
+<div class="btn-group notice-btns">
+  <a class="col-xs-4 btn glyphicon glyphicon-user border-sm lo-green btn-success" 
+  		href="{% url 'friendship_view_friends' request.user.username %}" style="top:0px">
+		<i class="glyphicon glyphicon-user border-sm lo-white" 
+			style="position:absolute;margin-left:-29px;margin-top:15px;"></i>
+	</a>
+  <a class="col-xs-4 btn btn-sm btn-success" 
+  	href="{% url 'friendship_request_list' %}"
+  	style="height:48px;padding-top:13px">Received</a>
+  <a class="col-xs-4 btn btn-sm btn-success" 
+  	href="{% url 'friendship_requests_rejected' %}"
+  	style="height:48px;padding-top:13px">Rejected</a>
+
+</div>
+<hr class="fancy"/>
+<div class="input-group controls">
+	<div class="input-group-addon">
+		<i class="glyphicon glyphicon-search border-sm lo-white"></i></div>
+<input type="text" name="q" class="auto form-control" 
+	style="width: 100%; font-size: 16px;height:40px;" autocomplete="off"/>
+</div>
+<hr class="fancy"/> 
+<ul id="friends">
+{% include page_template %}	
+</ul>
+</div>
+{% endblock %} 
+{% block tail_js %}
+
+<script src="{{ STATIC_URL }}endless_pagination/js/endless-pagination.js"></script>
+
+<script>
+$('#friends').endlessPaginate({
+	paginateOnScroll: true,
+	onCompleted: function(context,fragment){
+		$.ajax({
+			method: "GET",
+			url: "{{ STATIC_URL }}js/friend.js",
+			dataType: "script"
+		});
+		$.ajax({
+			method: "GET",
+			url: "{{ STATIC_URL }}js/follow.js",
+			dataType: "script"
+		});
+	}
+});
+$('.auto').on("input", function() {
+	var $value = $(this).val();
+	if ($value.length >= 2){
+    $.get('{% url "fr_autocomplete"%}?q=' + $value + '&rejected=False', {}, function(data){
+         $('#friends').html(data);
+    });
+    }
+ });</script>
+
+{% endblock %}

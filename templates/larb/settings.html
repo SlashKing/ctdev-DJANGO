@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+{% block content %}
+<script type="text/javascript" src="http://openlayers.org/api/2.13/OpenLayers.js"></script>
+<script type="text/javascript" src="{{STATIC_URL}}gis/js/OLMapWidget.js"></script>
+<form method="post" action="" enctype="multipart/form-data" id="settings">
+{% csrf_token %}
+{{ form | crispy }}
+<button class="btn btn-md btn-info border-md lo-white lobster drop-shadow" 
+	type="submit">
+	{% trans "Save" %}
+</button>	
+</form>
+<script type="text/javascript">
+$(".datepicker" ).datepicker({
+  dateFormat: "yy-mm-dd",
+  defaultDate: "{{user.profile.date_of_birth.year}}-{{user.profile.date_of_birth.month}}-{{user.profile.date_of_birth.day}}"});
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% comment %}
+
+  It either loads:
+  - picture_comments/templatetags/flat_html.html
+  - picture_comments/templatetags/threaded_list.html
+
+  Both reuse comments/comment.html eventually.
+  To style comments, consider overwriting the comment.html template.
+
+{% endcomment %}
+{% load picture_comments_tags %}{% picture_comments_list %}

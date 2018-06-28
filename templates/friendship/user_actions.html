@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+<h1 class="border-md">Users</h1>
+{% include 'includes/search_bar.html' %}
+<hr class="fancy"/>
+<ul id="users">
+{% include page_template %}
+</ul></div>
+{% endblock %}
+{% block tail_js %}
+
+<script src="{{ STATIC_URL }}endless_pagination/js/endless-pagination.js"></script>
+
+<script>$('#users').endlessPaginate({
+	paginateOnScroll: true,
+	onCompleted: function(context,fragment){
+		{% include 'includes/scripts/ajax_f_f.html' %}
+	}
+});
+$('.auto').on("input", function() {
+	var $value = $(this).val();
+	if ($value.length >= 2){
+    $.get('{% url "user_autocomplete"%}/?q=' + $value, {}, function(data){
+         {% include 'includes/scripts/ajax_f_f.html' %}
+         $('#users').html(data);
+   		 $('#users').endlessPaginate({
+			paginateOnScroll: true,
+			onCompleted: function(context,fragment){
+				{% include 'includes/scripts/ajax_f_f.html' %}
+			}
+    	});
+	});
+  }
+});</script>
+
+{% endblock %}

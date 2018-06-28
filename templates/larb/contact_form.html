@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block content %}
+<h1 style="text-align:center" >Contact us</h1>
+
+{% if form.errors %}
+        <p style="text-align:center;color: red;">
+            Please correct the error{{ form.errors|pluralize }} below.
+        </p>
+{% endif %}
+
+    <form class="text-center" action="" method="post">
+{% csrf_token %}
+        {{form | crispy}}
+        <button type="input" class="btn"><h2 style="margin-top:10px">Send</h2></button>
+    </form>
+{% endblock %}

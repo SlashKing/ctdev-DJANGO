@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load feedback_tags %}
+{% load render_bundle from webpack_loader %}
+{% block content %}
+{%comment%}
+{% feedback_form %}
+<div class="text-center btn-group" style="width:100%">
+	<button href="{% url 'index' %}" id="globalBtn" class="active btn btn-xs btn-success col-xs-6">{% trans 'Global' %}</button>
+	<button href="{% url 'index'%}?local=True" id="localBtn" class="btn btn-xs btn-success col-xs-6">{% trans 'Local' %}</button>
+</div>
+{%endcomment%}
+<script id="props" type="application/json">
+{
+	"user": null,
+	"request_user": {{request_user|safe}}
+}
+</script>
+<div id="App1"></div>
+{% render_bundle 'vendors' %}
+{% render_bundle 'App1'%}
+{% endblock %}
+{% block tail_js %}
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}ReactCrop/css/ReactCrop.css" />
+<script type="text/javascript" href="{{ STATIC_URL }}ReactCrop/js/ReactCrop.js"></script>
+<script type="text/javascript">
+jQuery.browser = {};
+(function () {
+	jQuery.browser.msie = false;
+	jQuery.browser.version = 0;
+    if (navigator.userAgent.match(/MSIE ([0-9]+)\./)) {
+    	jQuery.browser.msie = true;
+    	jQuery.browser.version = RegExp.$1;
+    }
+    
+});
+</script>
+{% endblock %}
+
+   

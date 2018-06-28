@@ -1,0 +1,19 @@
+<div class="btn-group notice-btns">
+	<a class="col-xs-4 btn glyphicon glyphicon-user btn-success border-sm lo-white" 
+  		href="{% url 'friendship_view_users' %}"></a>
+	<a class="col-xs-4 no-pad border-sm lobster lo-white btn btn-success" 
+  		href="{% url 'hashtag_index' %}">#</a></h3>
+	<a class="col-xs-4 glyphicon glyphicon-leaf btn-success border-sm lo-white btn btn-success" 
+  		href="{% url 'index' %}"></a>
+
+</div>
+<hr class="fancy"/>
+<div class="input-group controls">
+	<div class="input-group-addon">
+		<i class="glyphicon glyphicon-search border-sm lo-white"></i>
+	</div>
+	<input type="text" name="q" 
+		class="auto form-control" 
+		style="width: 100%; height:40px;font-size: 16px;" 
+		autocomplete="off"/>
+</div>

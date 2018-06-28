@@ -1,0 +1,31 @@
+{% extends 'chat/chat_base.html' %}
+
+{% block main_content %}
+    <div class="col-md-6">
+        <form method="post" class="form-inline">
+            <div class="form-group">
+                <input type="text" class="form-control" placeholder="name" id="name" autofocus="true">
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control" placeholder="message" id="message">
+            </div>
+
+            <div class="form-group">
+                <button type="button" class="btn btn-primary" id="send-message-button">chat</button>
+            </div>
+
+            <div>
+                <span id="error-name"></span>
+            </div>
+            <div>
+                <span id="error-message"></span>
+            </div>
+        </form>
+
+        <ul class="list-group">
+            <li class="list-group-item" id="messages">
+
+            </li>
+        </ul>
+    </div>
+{% endblock main_content %}

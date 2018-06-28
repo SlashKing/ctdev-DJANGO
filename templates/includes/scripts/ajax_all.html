@@ -1,0 +1,46 @@
+{% load static from staticfiles %}
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}fluent_comments/js/ajaxcomments.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/friend.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/follow.js",
+  	dataType: "script"
+});
+$.ajax({
+ 	method: "GET",
+  	url: "{{ STATIC_URL }}likes/includes/likes.js",
+  	dataType: "script"	
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}feedback_form/js/feedback_form.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/jquery.json.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/jquery.inplaceeditform.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/jquery.inplaceeditform.hooks.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/inplace_init.js",
+  	dataType: "script"
+});

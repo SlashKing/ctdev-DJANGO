@@ -1,0 +1,24 @@
+
+<div class="btn-group sm-pad">
+	<a href="{% url 'friendship_view_friends' user_sub.username %}" 
+  		class="btn btn-sm btn-success">
+		<span class="badge drop-shadow alert-success-dark">
+			{% if user_sub.friends.count != 0 %}
+			{{user_sub.friends.count}}{% else %} 0{% endif %}
+		</span>&nbsp;&nbsp;Homies
+	</a>
+	<a href="{% url 'friendship_followers' user_sub.username %}" 
+		class="btn btn-sm btn-success">
+		<span class="badge drop-shadow alert-success-dark">
+			{% if user_sub.followers.count != 0 %}
+			{{user_sub.followers.count}}{% else %} 0{% endif %}
+		</span>&nbsp;&nbsp;Followers
+	</a>
+	<a href="{% url 'friendship_following' user_sub.username %}" 
+		class="btn btn-sm btn-success">
+		<span class="badge drop-shadow alert-success-dark">
+			{% if user_sub.friends.count != 0 %}
+			{{user_sub.friends.count}}{% else %} 0{% endif %}
+		</span>&nbsp;&nbsp;Following
+	</a>
+</div>

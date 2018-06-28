@@ -1,0 +1,15 @@
+{% load endless %}
+{% lazy_paginate 25,50 hashtags %}
+
+{% for hashtag in hashtags %}
+<li>
+	<a class="border-sm lobster lo-white" 
+		href="{% url 'hashtagged_item_list' hashtag.name %}">#{{ hashtag.name }}
+	</a>
+<hr class="fancy"/></li>
+
+{% empty %}
+<li>No hashtags found matching your query
+<hr class="fancy"/></li>
+{% endfor %}
+{% show_more %}

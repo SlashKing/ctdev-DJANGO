@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %} 
+<div class="text-center">
+<h2 class="border-md">{{username}}'s Followers</h2>
+<div class="btn-group notice-btns">
+  <a class="col-xs-6 btn btn-sm btn-success" 
+  	href="{% url 'friendship_followers' username %}">Followers</a>
+  <a class="col-xs-6 btn btn-sm btn-success" 
+  	href="{% url 'friendship_following' username %}">Following</a>
+
+</div>
+<hr class="fancy"/>
+<div class="input-group controls">
+	<div class="input-group-addon">
+		<i class="glyphicon glyphicon-search border-sm lo-white"></i>
+	</div>
+	<input type="text" name="q" 
+		class="auto form-control" 
+		style="width: 100%; height:40px; font-size: 16px;" 
+		autocomplete="off"/>
+</div>
+<hr class="fancy"/> 
+<ul id="follow">
+{% include page_template %}
+</ul>
+</div>
+{% endblock %} 
+{% block tail_js %}
+
+<script src="{{ STATIC_URL }}el_pagination/js/endless-pagination.js"></script>
+
+<script>$('#follow').endlessPaginate({
+	paginateOnScroll: true,
+	onCompleted: function(context,fragment){
+		{% include 'includes/scripts/ajax_f_f.html' %}
+	}
+});
+$('.auto').on("input", function() {
+	var $value = $(this).val();
+	if ($value.length >= 2){
+    $.get('{% url "follow_autocomplete"%}/?q=' + $value + '&vers=followerss&username={{username}}', {}, function(data){
+        {% include 'includes/scripts/ajax_f_f.html' %}
+        $('#follow').html(data);
+   	 	$('#follow').endlessPaginate({
+			paginateOnScroll: true,
+			onCompleted: function(context,fragment){
+				{% include 'includes/scripts/ajax_f_f.html' %}
+			}
+   	 	});
+	});
+  }
+});
+</script>
+ {% endblock %}

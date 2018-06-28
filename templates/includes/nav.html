@@ -1,0 +1,114 @@
+{%comment%}{% load notifications_tags %}{%endcomment%} 
+{% load cache %}
+<body class='{% block pageclass %}{% endblock %}' {% block bodyattr %}{% endblock %}>
+{%comment%}
+{% block nav %}
+{% if user.is_authenticated %}    
+<nav class="nav navbar navbar-fixed-top">
+<div class="text-center container-fluid">  
+	<ul class="nav nav-pills main">
+		<li class="dropdown text-left">
+			<a class="dropdown-toggle" data-toggle="dropdown" >
+				<i class="glyphicon glyphicon-search border-md lo-white" ></i></a>
+			<ul class="dropdown-menu drop-shadow" role="menu">
+				<li>
+					<a href="{% url 'friendship_followers' user.username %}">
+						<span class="badge badge-menu alert-success-dark drop-shadow">
+							<i class="glyphicon glyphicon-user border-sm lo-white" data-toggle="dropdown" ></i>
+						</span>&nbsp&nbsp&nbsp&nbsp;Followers
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'friendship_following' user.username %}">
+						<span class="badge badge-menu alert-success-dark drop-shadow">
+							<i class="glyphicon glyphicon-user border-sm lo-white" data-toggle="dropdown" ></i>
+						</span>&nbsp&nbsp&nbsp&nbsp;Following
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'friendship_view_friends' user.username %}">
+						<span class="badge badge-menu alert-success-dark drop-shadow">
+							<i class="glyphicon glyphicon-user border-sm lo-white" data-toggle="dropdown" ></i>
+						</span>&nbsp&nbsp&nbsp&nbspFriends
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'friendship_view_users' %}">
+						<span class="badge badge-menu alert-success-dark drop-shadow">
+							<i class="glyphicon glyphicon-user border-sm lo-white" data-toggle="dropdown" ></i>
+						</span>&nbsp;&nbsp;&nbsp;&nbsp;Users
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'hashtag_index' %}">
+						<span class="badge badge-menu alert-success-dark drop-shadow">
+							<span class="border-sm lo-white" style='font-size:29px;padding: 0 2px;'>#</span>
+							
+						</span>&nbsp;&nbsp;Hashtags
+					</a>
+				</li>
+			</ul>
+		</li>
+		<li>
+			<a href="{% url 'index' %}" class="">
+				<i class="glyphicon glyphicon-leaf border-md lo-white"></i>
+			</a>
+		</li>
+		<li>
+			<a href="{% url 'friendship_view_users' %}">
+				<i class="glyphicon glyphicon-user border-md lo-white"></i>
+			</a>
+		</li>
+		<li>
+			<a href="{% url 'profile' user.username %}">
+				<i class="glyphicon glyphicon-pencil border-md lo-white"></i>
+		</a>
+		</li>
+	
+		<li class="dropdown">
+		<img class="dropdown-toggle n_img_round low-opac" 
+				data-toggle="dropdown" src="{{ user.profile.profile_image_url }}"/>
+			<ul class="dropdown-menu" role="menu" style="left:-110px">
+				<li>
+					<a href="{% url 'notifications:allnotifications' %}"><i class="glyphicon glyphicon-globe border-sm lo-white"></i>
+					{% notifications_unread as unread_count %}
+					{% if unread_count %}
+    					<span class="badge alert-danger" style="position:absolute;left:-5px;">
+    						{{ unread_count }}
+    				{% else %}
+    				 	<span class="badge" style="position:absolute;left:-5px;">0
+					{% endif %}
+						</span>&nbsp;Notifications
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'friendship_view_friends' user.username %}">
+						<i class="glyphicon glyphicon-user border-sm lo-white">
+						</i>&nbsp&nbsp&nbsp&nbsp;Friends
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'edit_profile' %}">
+						<i class="glyphicon glyphicon-wrench border-sm lo-white"></i>&nbsp&nbsp&nbsp&nbspSettings
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'account_change_password' %}">
+						<i class="glyphicon glyphicon-lock border-sm lo-white"></i>&nbsp&nbsp&nbsp&nbsp;Password
+					</a>
+				</li>
+				<li>
+					<a href="{% url 'account_logout' %}">
+						<span>
+							<i class="glyphicon glyphicon-remove-sign border-sm lo-red"></i>
+						</span>&nbsp&nbsp&nbsp&nbspLogout
+					</a>
+				</li>
+			</ul>	
+		</li>
+	</ul>
+</div>
+</nav>
+</div>
+{% endif %}
+{% endblock %}{%endcomment%}

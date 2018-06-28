@@ -1,0 +1,11 @@
+{% load staticfiles %}
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/friend.js",
+  	dataType: "script"
+});
+$.ajax({
+  	method: "GET",
+  	url: "{{ STATIC_URL }}js/follow.js",
+  	dataType: "script"
+});

@@ -1,0 +1,6 @@
+
+{% if is_following != True %}
+<a class="followButton follow" href="{% url 'follower_add' user_sub.username %}">Follow</a>
+{% else %}
+ <a class="followButton following" href="{% url 'follower_remove' user_sub.username %}">Following</a>
+ {%endif%}

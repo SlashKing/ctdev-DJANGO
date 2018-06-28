@@ -1,0 +1,23 @@
+{% load el_pagination_tags %}
+{% load friendshiptags %}
+{% lazy_paginate 20,40 followers %}
+{% for f in followers %}
+<li>{% if f %}
+        <ul class="nav nav-pills users">
+        	
+            <li class="va-nav-pill"><a href="{% url 'profile' f.username %}">
+            <img class="sm_img_round drop-shadow-lt" 
+            	style="margin-bottom:3px;float:none;" 
+            	src="{{ f.profile.profile_image_url }}"/>
+            	<span class="border-sm lobster lo-white" style="position:relative;top:4px;margin-left:3px">
+            		{{ f.username }}
+            	</span></a>
+            </li>
+            <li class="friends drop-shadow-lt">{% are_friends request.user f %}</li>     
+            <li class="follows drop-shadow-lt">{% is_following request.user f %}</li>
+        </ul>
+        <hr class="fancy"/>
+    {% endif %}
+    </li>
+{% endfor %}
+{% show_more %}

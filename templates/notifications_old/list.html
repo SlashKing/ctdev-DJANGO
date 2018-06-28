@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="notifications">
+<h1 class="border-md text-center">Notifications</h1>
+<div class="btn-group notice-btns">
+  <a class="col-xs-4 btn btn-sm btn-success" href="{% url 'notifications:allnotifications' %}">All</a>
+  <a class="col-xs-4 btn btn-sm btn-success" href="{% url 'notifications:unread' %}">Unread</a>
+  <a class="col-xs-4 btn btn-sm btn-success" href="{% url 'notifications:mark_all_as_read' %}">Mark All Read</a>
+
+</div>
+<ul class="notifications endless_page_template">
+    {% include page_template %}
+</ul>
+</div>
+{% endblock %}
+{% block tail_js %}
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}fluent_comments/css/ajaxcomments.css" />
+<script type="text/javascript" src="{{ STATIC_URL }}fluent_comments/js/ajaxcomments.js"></script>
+<script type="text/javascript" src="{{ STATIC_URL }}likes/includes/likes.js"></script>
+<script src="{{ STATIC_URL }}endless_pagination/js/endless-pagination.js"></script>
+<script>
+
+$(document).ready(function() {
+	$('.notifications').endlessPaginate({
+				paginateOnScroll: true,
+				onCompleted: function(context, fragment) {
+				$.ajax({
+  					method: "GET",
+  					url: "{{ STATIC_URL }}js/friend.js",
+  					dataType: "script"
+				});
+				
+				$.ajax({
+  					method: "GET",
+  					url: "{{ STATIC_URL }}js/follow.js",
+  					dataType: "script"
+				});
+				$.ajax({
+  					method: "GET",
+  					url: "{{ STATIC_URL }}likes/includes/likes.js",
+  					dataType: "script"
+				});
+      		}
+   });
+});
+</script>
+{% endblock %}

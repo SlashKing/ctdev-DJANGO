@@ -1,0 +1,48 @@
+{% load el_pagination_tags comments hashtags_tags likes_inclusion_tags timesince_threshold inplace_edit %}
+{% lazy_paginate 4,20 posts%}
+{% for post in posts %}
+<hr />
+<h4 style="font-size:12px">
+	<i class="glyphicon glyphicon-time status-time-icon"></i>
+		&nbsp&nbsp{{ post.pub_date | timesince_threshold }}
+</h4>
+<hr class="fancy" />
+<div class="drop-shadow" >
+	<p class="post-container border-sm lo-white lobster {% if post.user == request.user %}mine{% endif %}">
+{% if post.user == request.user %}
+	{% inplace_edit "post.text|safe" autoSave="1", disableClick="0", eventInplaceEdit="click" %}
+{% else %}
+	{{ post.text | urlize_hashtags | urlize_mentions }}
+{% endif %}
+	</p>
+</div>
+{%if post.picture != None %}
+<img class="img-thumbnail drop-shadow" src="{{MEDIA_URL}}{{ post.picture }}" />
+{%endif%}
+<hr class="fancy"/>
+<div class="row-fluid" >
+	<ul class="list-inline text-center">
+		<li>
+			<div class="votes" >{% likes post %}</div>
+		</li>
+		<li>
+			<a class="drop-shadow-lt border-sm lo-white btn-sm btn btn-success lobster" 
+			  data-toggle="tooltip" data-original-title="Expand Comments">
+				<div class="comment-toggle" data-toggle="collapse" data-target="#comments-{{post.id}}">
+					Comments {% get_comment_count for post as com_count %}
+					(<span id="comment-count-{{post.id}}">{{ com_count }}</span>)
+				</div>
+			</a>
+		</li>
+	</ul>
+</div>
+
+<hr/>
+<div class="comments static">
+	{% render_comment_form for post %}
+		<div class="comments full">
+			{% render_comment_list for post %}
+		</div>
+</div>
+{% endfor %}
+{% show_more %}

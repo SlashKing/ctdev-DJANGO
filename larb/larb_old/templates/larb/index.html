@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+
+<div id="posts" class="endless_page_template">
+{% include page_template %}
+</div>
+{% endblock %}
+{% block tail_js %}
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}fluent_comments/css/ajaxcomments.css" />
+<script type="text/javascript" src="{{ STATIC_URL }}fluent_comments/js/ajaxcomments.js"></script>
+<script type="text/javascript" src="{{ STATIC_URL }}likes/includes/likes.js"></script>
+<script src="{{ STATIC_URL }}endless_pagination/js/endless-pagination.js"></script>
+<script>
+jQuery.browser = {};
+(function () {
+    jQuery.browser.msie = false;
+    jQuery.browser.version = 0;
+    if (navigator.userAgent.match(/MSIE ([0-9]+)\./)) {
+        jQuery.browser.msie = true;
+        jQuery.browser.version = RegExp.$1;
+    }
+});
+$(document).ready(function() {
+	$('#posts').endlessPaginate({
+				paginateOnScroll: true,
+				onCompleted: function(context, fragment) {
+				$.ajax({
+  					method: "GET",
+  					url: "{{ STATIC_URL }}fluent_comments/js/ajaxcomments.js",
+  					dataType: "script"
+				});
+				
+      		}
+   });
+   $('.comments').endlessPaginate({
+				paginateOnScroll: false
+   });
+});
+</script>
+{% endblock %}
+
+   

@@ -1,0 +1,1 @@
+export const USER_PROFILES = "user_profiles/"

@@ -1,0 +1,55 @@
+{% extends "demo/base.html" %}
+{% load demo_tags i18n account crispy_forms_tags socialaccount %}
+{% load url from future %}
+{% load static from staticfiles %}
+
+
+{% block heading %}
+<div class="text-center">
+{% if not request.user.is_authenticated %}
+
+	<div>
+   		<span class="lobster border-lg">420WithMe</span><br/>
+		<button class="btn btn-success btn-lg border-md lo-yellow lobster drop-shadow" 
+			onclick="window.location.href='{% url 'account_signup' %}'">
+				{% trans "Sign Up" %}
+		</button>
+			<a href="{% url 'account_login' %}" 
+				class="btn btn-primary btn-lg border-md lo-white lobster drop-shadow" 
+				type="submit">
+				{% trans "Sign In" %}
+			</a>
+    	<br/><span class="lobster border-sm lo-white">Don't have an account?</span>
+		<a href="{% provider_login_url "facebook" method="js_sdk" %}">
+			<div class="fb"></div>
+		</a>
+	{% include "socialaccount/snippets/login_extra.html" %}
+	
+	</div>
+{% else %}
+	{%comment%}
+		<img src="{% static 'img/twitter-big.png' %}" 
+			style="margin:0 auto; max-width:265px;border-radius:50%;"
+			class="img-thumbnail">
+	{%endcomment%}
+{% endif %}
+        {% block search_box %}
+            {% comment %}{% include "_420cms/includes/search_box.html" only %}{% endcomment %}
+        {% endblock %}
+    
+	{% include "_420cms/includes/carousel.html" with carousel_items=self.carousel_items.all only %}
+
+ </div>
+{% endblock %}
+
+
+{% block content %}
+    
+    {% include "demo/includes/body.html" with body=self.body only %}
+
+    {% comment %}{% person_listing_homepage %}{% endcomment %}
+
+    {% blog_listing_homepage %}
+
+    {% comment %}{% event_listing_homepage %}{% endcomment %}
+{% endblock %}

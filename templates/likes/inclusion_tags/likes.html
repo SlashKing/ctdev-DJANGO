@@ -1,0 +1,39 @@
+{% load i18n %}
+{%comment%}
+{% if import_js %}
+    <script type="text/javascript" src="{{ STATIC_URL }}likes/includes/likes.js"></script>
+{% endif %}
+{%endcomment%}
+
+{% if likes_enabled %}
+{% if can_vote %}
+<span class="drop-shadow-lt border-sm lo-white lobster btn btn-sm btn-success">
+	<span class="vote_count">
+{% if content_obj.vote_total == 0 %}0
+{%elif content_obj.vote_total == None%}
+{% with "d_"|add:content_obj.pk as b %}
+{{ d.d_21}}
+{% endwith %}
+{% else %}{{ content_obj.vote_total }}{% endif %}
+    
+    </span>
+    <a class="liker" 
+         href="{% url 'like' content_type content_obj.id 1 %}"
+         rel="nofollow">
+         <i style="position:relative;top:4px;" 
+             class="glyphicon glyphicon-thumbs-up lo-white"></i>
+    </a>
+{% else %}
+<span class="drop-shadow-lt border-sm lo-white lobster btn btn-sm btn-danger">
+	<span class="vote_count">
+        {{ content_obj.vote_total }}
+    </span>
+    <a class="disliker" 
+        href="" 
+        rel="nofollow">
+        <i style="position:relative;top:4px" 
+             class="glyphicon glyphicon-thumbs-down lo-white"></i>
+    </a>
+{% endif %}
+</span>
+{% endif %}

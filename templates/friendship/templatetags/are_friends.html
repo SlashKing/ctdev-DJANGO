@@ -1,0 +1,65 @@
+{% if frs %}
+<a class="friendButton friend" href="{% url 'friendship_cancel' fr.pk %}" 
+	data-original-title="Cancel friendship request to {{ user_sub.username }}" 
+	data-toggle="tooltip">
+	<i class="glyphicon glyphicon-user"></i>
+	<i class="glyphicon glyphicon-remove" 
+		style="font-size:11px;position:absolute;right:3px;"></i>
+</a>
+{% elif are_friends %}
+<a class="friendButton friend" href="" 
+	data-original-title="Remove {{ user_sub.username }} from friends" 
+	data-toggle="tooltip">
+	<i class="glyphicon glyphicon-user"></i>
+	<i class="glyphicon glyphicon-minus-sign" 
+		style="font-size:11px;position:absolute;right:3px;"></i>
+</a>
+{% elif frR %}
+<a class="friendButton no-friend" href="{% url 'friendship_accept' fr.pk %}" 
+	data-original-title="Accept friendship request from {{ user_sub.username }}" 
+	data-toggle="tooltip">
+	<i class="glyphicon glyphicon-user"></i>
+	<i class="glyphicon glyphicon-ok" 
+	style="font-size:11px;position:absolute;right:3px;"></i>
+</a>
+{% elif frr %}
+<a class="friendButton no-friend" href="{% url 'friendship_accept' fr.pk %}" 
+	data-original-title="Accept friendship request from {{ user_sub.username }}" data-toggle="tooltip">
+	<i class="glyphicon glyphicon-user"></i>
+	<i class="glyphicon glyphicon-ok" 
+		style="font-size:11px;position:absolute;right:3px;"></i>
+</a>
+<li class="friends">
+	<a class="friendButton friend" href="{% url 'friendship_reject' fr.pk %}" 
+		data-original-title="Reject friendship request from {{ user_sub.username }}" 
+		data-toggle="tooltip">
+		<i class="glyphicon glyphicon-user"></i>
+		<i class="glyphicon glyphicon-remove" 
+			style="font-size:11px;position:absolute;right:3px;"></i>
+	</a>
+</li>
+{% elif frr and frs %}
+<a class="friendButton no-friend" href="{% url 'friendship_accept' fr2.pk %}" 
+	data-original-title="Accept friendship request from{{ user_sub.username }}" data-toggle="tooltip">
+	<i class="glyphicon glyphicon-user"></i>
+	<i class="glyphicon glyphicon-ok" 
+		style="font-size:11px;position:absolute;right:3px;"></i>
+</a>
+<li class="friends">
+	<a class="friendButton friend" href="{% url 'friendship_cancel' fr.pk %}" 
+	data-original-title="Cancel friendship request to {{ user_sub.username }}" 
+	data-toggle="tooltip">
+		<i class="glyphicon glyphicon-user"></i>
+		<i class="glyphicon glyphicon-minus-sign" 
+			style="font-size:11px;position:absolute;right:3px;"></i>
+	</a>
+</li>
+{% elif are_friends == False %}
+<a class="friendButton no-friend" href="{% url 'friendship_add_friend' user_sub.username %}" 
+	data-original-title="Add {{ user_sub.username }} as friend" data-toggle="tooltip">
+	<i class="glyphicon glyphicon-user"></i>
+	<i class="glyphicon glyphicon-plus-sign" 
+		style="font-size:11px;position:absolute;right:3px;"></i>
+</a>
+{% else %}
+{% endif %}
