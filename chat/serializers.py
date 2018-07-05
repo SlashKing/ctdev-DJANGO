@@ -46,6 +46,24 @@ class GroupMessageSerializer(MessageSerializer):
         fields = MessageSerializer.Meta.fields
 
 
+class ReducedUserSerializer(ModelSerializer):
+    username = SerializerMethodField()
+    profile_image = SerializerMethodField()
+    key = SerializerMethodField()
+
+    def get_key(self, obj):
+        return obj.user.id
+
+    def get_username(self, obj):
+        return obj.user.username
+
+    def get_profile_image(self, obj):
+        return obj.user.profile.profile_image_url()
+
+    class Meta:
+        model = GroupChatUser
+        fields = ('key', 'username', 'profile_image')
+
 class ChatUserSerializer(ModelSerializer):
     #user = SerializerMethodField()
     id = SerializerMethodField()
@@ -107,14 +125,11 @@ class RoomSerializer(ModelSerializer):
 
     def get_users(self, obj):
         return self.user_serializer(
-            obj.users.through.objects.filter(
-                room__id=obj.id).exclude(
-                user=self.context['request'].user
-            ), context={'request':self.context['request']}, many=True).data
+            obj.chatusers, context={'request':self.context['request']}, many=True).data
 
     def get_messages(self, obj):
         return self.msg_serializer(
-            obj.messages.order_by('-timestamp').distinct()[:20],
+            obj.m_messages[:20],
             context={'request': self.context['request']},
             many=True).data
 
@@ -126,8 +141,6 @@ class RoomSerializer(ModelSerializer):
 class JoinRequestSerializer(ModelSerializer):
     requester = SerializerMethodField()
     requested = SerializerMethodField()
-    rejected = SerializerMethodField()
-    viewed = SerializerMethodField()
 
     def get_requester(self, obj):
         return UserSerializer(obj.requester, context={'request':self.context.get('request',None)}).data
@@ -135,47 +148,62 @@ class JoinRequestSerializer(ModelSerializer):
     def get_requested(self, obj):
         return UserSerializer(obj.requester, context={'request':self.context.get('request',None)}).data
 
-    def get_rejected(self, obj):
-        return True if obj.rejected is not None else False
-
-    def get_viewed(self, obj):
-        return True if obj.viewed is not None else False
-
     class Meta:
         model = JoinRequest
-        fields = ('requester', 'requested', 'rejected', 'viewed')
+        fields = ('requester', 'requested', 'is_rejected', 'is_viewed', 'created')
 
 
 class GroupRoomSerializer(RoomSerializer):
     location = SerializerMethodField()
     join_requests = SerializerMethodField()
+    #admin_users = SerializerMethodField()
+    im_admin = SerializerMethodField()
     user_serializer = GroupChatUserSerializer
     msg_serializer = GroupMessageSerializer
 
+    def get_im_admin(self, obj):
+         # chat users are sorted with admin first, so we can easily check each room if we are admin
+         # by iterating through the prefetched chatusers for this room
+         for u in obj.chatusers:
+             if self.context['request'].user.id is u.user.id:
+                 if u.admin is True:
+                     return True
+                 continue
+         return False
+         #return obj.groupchatuser_set.filter(user=self.context['request'].user, room=obj, admin=True).exists()
+
     def get_join_requests(self, obj):
         return JoinRequestSerializer(
-            obj.join_requests.all(),
-            context={'request':self.context['request']},
+            obj.join_requests_cache,
+            context={
+                'request': self.context['request']
+            },
             many=True).data
 
     def get_location(self, obj):
         return obj.lat_long
 
     def get_users(self, obj):
-        return GroupChatUserSerializer(
-            obj.users.through.objects.filter(room=obj),
+        return self.user_serializer(
+            obj.chatusers,
             context={'request':self.context['request']},
             many=True).data
 
+    #def get_admin_users(self, obj):
+    #    return self.user_serializer(
+    #        obj.room_admin_users,#.through.objects.select_related('user', 'user__profile').filter(room=obj, admin=True),
+    #        context={'request':self.context['request']},
+    #        many=True).data
+
     def get_messages(self, obj):
         return self.msg_serializer(
-            obj.g_messages.order_by('-timestamp').distinct()[:20],
+            obj.gg_messages,
             context={'request': self.context['request']},
             many=True).data
 
     class Meta:
         model = GroupRoom
-        fields = RoomSerializer.Meta.fields + ('private', 'location', 'join_requests')
+        fields = RoomSerializer.Meta.fields + ('private', 'location', 'join_requests', 'im_admin', )
 
 
 class UserReportSerializer(ModelSerializer):

@@ -1,12 +1,16 @@
 from django.http import HttpResponse
 from django.shortcuts import render
-from .models import Message, GroupMessage
-from .serializers import MessageSerializer, GroupMessageSerializer
+from .models import Message, GroupMessage, GroupChatUser, GroupRoom, Room, ChatUser
+from .serializers import MessageSerializer, GroupMessageSerializer, ReducedUserSerializer
 from cicu.models import UploadedFile
-from django.db.models import Q
+from django.db.models import Q, Prefetch
+#from django.db import connection
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.generics import ListAPIView
+from rest_framework.exceptions import ValidationError
 from django.utils.timezone import now
 from rest_framework.decorators import detail_route, list_route
 from cicu.serializers import FileUploadSerializer
@@ -20,7 +24,43 @@ def robots(request):
     """`robot.txt <http://www.robotstxt.org>`_"""
     return HttpResponse('User-agent: *\nDisallow: /')
 
-#class ChatUserViewSet(ModelViewSet):
+class GroupChatUserListView(ListAPIView):
+    queryset = GroupChatUser.objects.none()
+    serializer_class = ReducedUserSerializer
+
+    def get_queryset(self):
+        room_id = self.request.query_params.get('r_id', None)
+        try:
+            room_id=int(room_id)
+        except:
+            raise ValidationError({ 'error': str(_('Invalid room id sent as parameter.'))})
+
+        if room_id is not None:
+            users = []
+            user_ids = []
+            if room_id > 0:
+                queryset = self.request.user.rooms.only('id').prefetch_related(
+                    Prefetch(
+                        'chatuser_set',
+                        queryset=ChatUser.objects.exclude(user_id=self.request.user.id),
+                        to_attr='chatusers'
+                    )
+                ).distinct()
+                group_room_exists = GroupRoom.objects.filter(id=room_id).exists()
+                if group_room_exists:
+                    for r in queryset:
+                        for u in r.chatusers:
+                            print(u)
+                            already_in_group = GroupChatUser.objects.filter(room_id=room_id, user_id=u.user_id).exists()
+                            if not already_in_group:
+                                user_ids.append(u.user_id)
+                                users.append(u)
+            else:
+                queryset = []
+                users = []
+            return users
+        raise ValidationError({ 'error': str(_('r_id is a required query parameter' )) })
+
 class MessageViewSet(ModelViewSet):
     queryset = Message.objects.none()
     serializer_class = MessageSerializer
@@ -37,7 +77,7 @@ class MessageViewSet(ModelViewSet):
                 params &= Q(user__id=user_id)
         else:
             params &= Q(id=message_id)
-        self.queryset = self.serializer_class.Meta.model.objects.filter(params)
+        self.queryset = self.serializer_class.Meta.model.objects.filter(params).select_related('room', 'user', 'user__profile')
         return self.queryset
 
     def create(self, request):

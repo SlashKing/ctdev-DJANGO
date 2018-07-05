@@ -12,7 +12,8 @@ from rest_framework.authtoken.views import obtain_auth_token
 from rest_friendship import urls
 from api.views import UploadedFileViewSet, NotificationViewSet, UserProfileViewSet, UserViewSet, PostViewSet, \
     CommentViewSet, VoteViewSet, HashTagViewSet, HashTaggedItemViewSet
-from chat.views import MessageViewSet, GroupMessageViewSet
+from chat.views import MessageViewSet, GroupMessageViewSet, GroupChatUserListView
+from chat.serializers import ReducedUserSerializer
 from larb.views import FacebookLogin
 from django.views.generic.base import RedirectView
 from django.contrib.auth.views import PasswordResetConfirmView
@@ -55,6 +56,7 @@ urlpatterns = [
     # url(r'^weed/comments/', include('picture_comments.urls')),
     # url(r'^weed/hashtags/', include('hashtags.urls')),
     url(r'^api/', include(router.urls)),
+    url(r'^api/groupchatusers', GroupChatUserListView.as_view(),name='groupchatuser-serializer'),
     url(r'^rest/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/', include('rest_friendship.urls')),
     url(r'^api/', include('rest_flag.urls')),

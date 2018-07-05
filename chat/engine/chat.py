@@ -1,7 +1,8 @@
 from channels import Group, DEFAULT_CHANNEL_LAYER, channel_layers
-from chat.models import ChatUser, Message, Room, GroupRoom, GroupChatUser, JoinRequest
+from chat.models import ChatUser, Message, Room, GroupRoom, GroupChatUser, JoinRequest, GroupMessage
 from django.contrib.auth.models import User
 from django.db.models import Q, F, ProtectedError
+from django.db.utils import IntegrityError
 from django.apps import apps
 from django.contrib.gis.geos import fromstr
 from django.utils import timezone
@@ -13,6 +14,8 @@ from chat.serializers import RoomSerializer, GroupRoomSerializer, GroupMessageSe
 from rest_friendship.serializers import FriendSerializer, ExtendedFriendSerializer
 from friendship.models import Friend
 from django.db.utils import IntegrityError
+import json
+
 
 class MyDict(dict):
     pass
@@ -127,6 +130,9 @@ class ChatEngine(ActionEngine):
                 Group(room_channel).add(channel)
 
     def CHAT_LOGIN(self, action):
+        from django.db.models import Prefetch, F
+        from django.db import connection
+        print(len(connection.queries))
         # Authentication is handled at the request level
         user, username = self._get_user_and_name()
         # Add this websocket to the user's control channel group
@@ -145,11 +151,11 @@ class ChatEngine(ActionEngine):
 
         # Get a list of rooms to display on the screen on load
         # Each room can have several users
-        rooms = Room.objects.filter(Q(users=user) & Q(active=True)).distinct()
-        group_rooms = GroupRoom.objects.filter(Q(users=user) & Q(active=True)).distinct()
+        rooms = Room.through_objects.rooms(user).prefetch(user)
+        group_rooms = GroupRoom.through_objects.rooms(user).by_private(False).prefetch()
         friends = ExtendedFriendSerializer(
             Friend.objects.select_related(
-                'to_user').filter(
+                'from_user__profile', 'from_user__profile__profile_image' , 'to_user__profile', 'to_user__profile__profile_image').filter(
                 to_user=user),
             context={'request': request},
             many=True).data
@@ -160,8 +166,10 @@ class ChatEngine(ActionEngine):
             'friends': friends,
             'rooms': RoomSerializer(rooms, context={'request': request}, many=True).data,
             'group_rooms': GroupRoomSerializer(group_rooms, context={'request': request}, many=True).data,
+            'query': str(group_rooms.query)
         })
 
+        print(len(connection.queries))
         # Broadcast the user's joining
         for room in rooms:
             self._add_users_to_channel(room)
@@ -178,93 +186,146 @@ class ChatEngine(ActionEngine):
             for channel in other_channels:
                 Group(g_room_channel).add(channel)
 
+        # print(connection.queries)
 
-    def REQUEST_TO_JOIN(self,action):
-        requested = action.get('requested',None)
-        requester= self.message.user.id
-        message = action.get('message','')
+    def REQUEST_TO_JOIN(self, action):
+        from itertools import chain
+        """
 
-        if requested is not None:
-            try:
-                room = GroupRoom.objects.get(id=room_id)
-                room.add_join_request(
-                    requester_id=requester,
-                    requested_id=requested,
-                    message=message
-                )
+        :param action (roomId<int>, message<string>, sendToUsers<list>, admin<bool>:
+        :return ws response for both all parties:
+        """
+        print(action['roomId'])
+        message = action.get('message', '')
+        room_id = action.get('roomId', None)
+        send_to_users = action.get('sendToUsers', None)
+        is_admin = action.get('admin', False)
 
-                request = MyDict()
-                request.user = self.message.user
+        if send_to_users is None:
+            return self.send({
+                'type': constants.REQUEST_TO_JOIN_FAILURE,
+                'error': str(_('Error validating parameters. sendToUsers is required.'))
+            })
 
-                self.send({
-                    'type': constants.REQUEST_TO_JOIN_SUCCESS,
-                    'room': self._room_serializer_by_type(room)(
+        if room_id is not None:
+            room = GroupRoom.through_objects.by_id(room_id).prefetch().first()
+            if room is not None:
+                users = []
+                requests = []
+                for u in send_to_users:
+                    if isinstance(u, int):
+                        requests.append(
+                            JoinRequest(
+                                admin=is_admin,
+                                content_object=room,
+                                requester_id=self.message.user.id,
+                                requested_id=u,
+                                message=message
+                            )
+                        )
+                        users.append(u)
+                    else:
+                        # skip the user, continue with request building
+                        continue
+
+                # add the user to the group but set activated to false until the user accepts or rejects
+                # replaced prefetched data
+                room.chatusers = chain(room.chatusers, room.add_users(users, activated=False))
+
+                try:
+                    jrs = JoinRequest.objects.bulk_create(requests)
+
+                   #room.add_join_request(
+                   #    admin=is_admin,
+                   #    requester_id=requester,
+                   #    requested_id=requested,
+                   #    message=message
+                   #)
+
+                    request = MyDict()
+                    request.user = self.message.user
+                    room.join_requests_cache = jrs
+
+
+                    self.send({
+                        'type': constants.REQUEST_TO_JOIN_SUCCESS,
+                        'room': self._room_serializer_by_type(room)(
+                            room, context={'request': request}).data,
+                        'success': str(_('Request to join the room was successfully received by server.'))
+                    })
+                    self._add_users_to_channel(room)
+
+                    for uu in users:
+                        # switch the request user
+                        request.user = User.objects.select_related('profile').filter(id=uu).first()
+
+                        self.send_to_group(self.get_control_channel(request.user.username),{
+                            'type': constants.REQUEST_TO_JOIN_SUCCESS,
+                            'room': self._room_serializer_by_type(room)(
                                 room, context={'request': request}).data,
-                    'success': _('Request to join the room was successfully received by server.')
-                })
-            except IntegrityError as e:
+                            'success': str(_('You''ve been summoned to a new group!'))
+                        })
+                    # send notifications to chat users
+                except IntegrityError as e:
+                    # error in the bulk_create tell the user
+                    self.send({
+                        'type': constants.REQUEST_TO_JOIN_FAILURE,
+                        'error': str(_('A user you have tried to add has already been sent a join request. Refresh the user list and try again.'))# DEBUG: str(_(str(e)))
+                    })
+            else:
                 self.send({
                     'type': constants.REQUEST_TO_JOIN_FAILURE,
-                    'error': _(str(e))
-                })
-            except GroupRoom.DoesNotExist:
-                self.send({
-                    'type': constants.REQUEST_TO_JOIN_FAILURE,
-                    'error': _('Error validating roomId. Object with that roomId does not exist')
+                    'error': str(_('Error validating roomId. Object with that roomId does not exist'))
                 })
         else:
             self.send({
                 'type': constants.REQUEST_TO_JOIN_FAILURE,
-                'error': _('Error validating roomId. It was missing from the request data.')
+                'error': str(_('Error validating parameters. roomId is not specified in data.'))
             })
 
-
-    def ACCEPT_JOIN_REQUEST(self,action):
-        room_id = action.get('roomId',None)
+    def ACCEPT_JOIN_REQUEST(self, action):
+        room_id = action.get('roomId', None)
         user_id = self.message.user.id
 
         if room_id is not None:
-            try:
-                room = GroupRoom.objects.get(id=room_id)
+            room = GroupRoom.through_objects.by_id(room_id).prefetch().first()
+            if room is not None:
                 try:
-                    join_request = room.join_requests.get(requested__id=user_id)
+                    join_request = room.join_requests_cache.filter(requested__id=user_id).first()
                     join_request.accept()
-
                     request = MyDict()
                     request.user = self.message.user
-
                     self.send({
                         'type': constants.ACCEPT_JOIN_REQUEST_SUCCESS,
                         'room': self._room_serializer_by_type(room)(
-                                    room, context={'request': request}).data,
+                            room, context={'request': request}).data,
                         'success': _('Request to join the room was rejected.')
                     })
                 except JoinRequest.DoesNotExist:
                     self.send({
                         'type': constants.ACCEPT_JOIN_REQUEST_FAILURE,
-                        'error': _('Error validating roomId. Object with that roomId does not exist')
+                        'error': str(_('Error validating join request from this user'))
                     })
-            except GroupRoom.DoesNotExist:
+            else:
                 self.send({
                     'type': constants.ACCEPT_JOIN_REQUEST_FAILURE,
-                    'error': _('Error validating roomId. Object with that roomId does not exist')
+                    'error': str(_('Error validating roomId. Object with that roomId does not exist'))
                 })
         else:
             self.send({
                 'type': constants.ACCEPT_JOIN_REQUEST_FAILURE,
-                'error': _('Error validating roomId. It was missing from the request data.')
+                'error': str(_('Error validating roomId. It was missing from the request data.'))
             })
 
-
-    def REJECT_JOIN_REQUEST(self,action):
-        room_id = action.get('roomId',None)
+    def REJECT_JOIN_REQUEST(self, action):
+        room_id = action.get('roomId', None)
         user_id = self.message.user.id
 
         if room_id is not None:
             try:
-                room = GroupRoom.objects.get(id=room_id)
+                room = GroupRoom.through_objects.by_id(room_id).prefetch().first()
                 try:
-                    join_request = room.join_requests.get(requested__id=user_id)
+                    join_request = room.join_requests_cache.filter(requested__id=user_id).first()
                     join_request.reject()
 
                     request = MyDict()
@@ -273,7 +334,7 @@ class ChatEngine(ActionEngine):
                     self.send({
                         'type': constants.ACCEPT_JOIN_REQUEST_SUCCESS,
                         'room': self._room_serializer_by_type(room)(
-                                    room, context={'request': request}).data,
+                            room, context={'request': request}).data,
                         'success': _('Request to join the room was rejected.')
                     })
                 except JoinRequest.DoesNotExist:
@@ -292,46 +353,52 @@ class ChatEngine(ActionEngine):
                 'error': _('Error validating roomId. It was missing from the request data.')
             })
 
-
     def CREATE_MEET_MAP_ROOM(self, action):
         request = MyDict()
         request.user = self.message.user
-        #try:
+        # try:
         r_model = self._check_room_type(action)
-        print(action)
         room = r_model()
         # group rooms have a location attribute that we set
         if 'location' in action:
             location = action['location']
             room.location = fromstr("POINT({0} {1})".format(
-                location.get('longitude', 0),
-                location.get('latitude', 0)
+                location.get('latitude', 0),
+                location.get('longitude', 0)
                 )
             )
+        if 'title' in action:
+            room.title = action['title']
+
+        # save room so we can add users
         room.active = True
         room.save()
-        users = room.add_users([self.message.user.id])
+
+        # create admin user
+        users = room.add_users([self.message.user.id], activated=True)
         users[0].set_admin(True)
+
+        # iterate through users and send join requests
         if 'users' in action:
             users = []
             requests = []
             for u in action['users']:
-                try:
-                    this_user = User.objects.get(id=u)
+                if isinstance(u, int):
                     join_request = JoinRequest(
                         content_object=room,
                         requester=user,
-                        requested=this_user
+                        requested_id=u
                     )
                     requests.append(join_request)
                     users.append(u)
-                except User.DoesNotExist:
+                else:
                     continue
-            # add the user to the group but set to active until the user accepts or rejects
+            # add the user to the group but set activated to False until the user accepts or rejects
             room.add_users(users, activated=False)
             JoinRequest.objects.bulk_create(requests)
         self._add_users_to_channel(room)
 
+        room = r_model.through_objects.by_id(room.id).prefetch().first()
         # Send the room back to the user that opened a new chat window for UI purposes
         # TODO: send notification to premium users that another user opened a chat window with you
         self.send({
@@ -340,15 +407,16 @@ class ChatEngine(ActionEngine):
             'room': self._room_serializer_by_type(room)(
                 room, context={'request': request}).data
         })
-        #except Exception as error:
+        # except Exception as error:
         #    print(error)
-#
-        #    self.send({
-        #        'type': constants.CREATE_MEET_MAP_ROOM_FAILURE,
-        #        'error': str(error),
-        #        'room': self._room_serializer_by_type(room)(
-        #            room, context={'request': request}).data
-        #    })
+
+    #
+    #    self.send({
+    #        'type': constants.CREATE_MEET_MAP_ROOM_FAILURE,
+    #        'error': str(error),
+    #        'room': self._room_serializer_by_type(room)(
+    #            room, context={'request': request}).data
+    #    })
 
     def CREATE_CHAT_ROOM(self, action):
         """
@@ -362,39 +430,45 @@ class ChatEngine(ActionEngine):
 
             user = self.message.user
             users = []
-            querysets = []
             room_type = self._check_room_type(action)
             room = None
-            queryset = room_type.objects.filter(users=user).distinct()
+            queryset = room_type.through_object.rooms(user)
 
             if 'users' in action:
                 for u in action['users']:
-                    users.append(u)
-                querysets.append(room_type.objects.filter(users__in=[users]).distinct())
-            users.append(user.id)
-            # Ugly but it works, we have compiled a list of querysets for the users that are to be added to the room
-            # and use intersection to get the room we are trying to get.
-            # FIXME: this will break with group rooms as it could return several results depending whether the same users are carrying multiple simiultaneous chats. RIP
-            room = queryset.intersection(*querysets)
+                    if isinstance(u, int):
+                        # add to array to
+                        users.append(u)
+                        queryset = queryset.rooms(u)
+                    else:
+                        # skip if not int
+                        continue
+
+            else:
+                self.send({
+                    'type': constants.CREATE_CHAT_ROOM_FAILURE,
+                    'error': str(_('Validation Error! Must have users in action.'))
+                })
 
             if room.count() is 0:
+                # if a new room, we need to add all chat users
+                # first, add the current user id to the users array
+                users.append(user.id)
                 room = room_type()
-                # group rooms have a location attribute that we set
-                if 'location' in action:
-                    room.location = fromstr("POINT({0} {1})".format(
-                        action['location'].longitude,
-                        action['location'].latitude)
-                )
 
                 room.add_users(users)
 
                 self._add_users_to_channel(room)
+                room.set_active(True)
+                for _u in users:
+                    room = room_type.through_object.rooms(_u)
 
+                # prefetch related
+                room = room.prefetch(user).first()
             else:
-                room = room[0] #return the first, and should be only room
+                # get first, should be unique based on db constraints
+                room = queryset.prefetch(user).first()
 
-            room.active = True
-            room.save()
 
             request = MyDict()
             request.user = user
@@ -408,8 +482,8 @@ class ChatEngine(ActionEngine):
             })
 
             # send the room to all remaining users in the chat to be consumed by Redux
-            for uu in room.users.exclude(username=user.username):
-                room_channel = self.get_room_channel(room, room.id)
+            for uu in room.users.exclude(username=username):
+                room_channel = self.get_control_channel(uu.username)
                 request.user = uu
                 self.send_to_group(room_channel, {
                     'type': constants.CREATE_CHAT_ROOM_SUCCESS,
@@ -421,9 +495,7 @@ class ChatEngine(ActionEngine):
             print(error)
             self.send({
                 'type': constants.CREATE_CHAT_ROOM_FAILURE,
-                'error': 'Could not create chat room'})
-
-
+                'error': str(_('Could not create chat room'))})
 
     def BLOCK_USER(self, action):
         """
@@ -435,22 +507,21 @@ class ChatEngine(ActionEngine):
         user_id = action['userId']
         user_type = self._check_user_type(action)
         try:
-            user_to_block = user_type.objects.get(Q(room_id=room_id)&Q(user_id=user_id))
+            user_to_block = user_type.objects.get(Q(room_id=room_id) & Q(user_id=user_id))
             user_to_block.block()
             message = {
                 'type': constants.BLOCK_USER_SUCCESS,
                 'roomId': room_id,
-                'userId': user_id
+                'userId': user_id,
+                'success': str(_('User was blocked successfully.'))
             }
             self.send(message)
             self.send_to_group(self.get_control_channel(user_to_block.user.username), message)
         except user_type.DoesNotExist:
             self.send({
                 'type': constants.BLOCK_USER_FAILURE,
-                'roomId': room_id,
-                'error': _('The user you are trying to block does not exist')
+                'error': str(_('The user you are trying to block does not exist'))
             })
-
 
     def UNBLOCK_USER(self, action):
         """
@@ -462,23 +533,21 @@ class ChatEngine(ActionEngine):
         user_id = action['userId']
         user_type = self._check_user_type(action)
         try:
-            user_to_unblock = user_type.objects.get(Q(room_id=room_id)&Q(user_id=user_id))
+            user_to_unblock = user_type.objects.get(Q(room_id=room_id) & Q(user_id=user_id))
             user_to_unblock.unblock()
             message = {
                 'type': constants.UNBLOCK_USER_SUCCESS,
                 'roomId': room_id,
-                'userId': user_id
+                'userId': user_id,
+                'success': str(_('User was unblocked successfully.'))
             }
             self.send(message)
             self.send_to_group(self.get_control_channel(user_to_unblock.user.username), message)
         except user_type.DoesNotExist:
             self.send({
                 'type': constants.UNBLOCK_USER_FAILURE,
-                'roomId': room_id,
-                'error': _('The user you are trying to unblock does not exist')
+                'error': str(_('The user you are trying to unblock does not exist'))
             })
-
-
 
     def DELETE_CHAT_ROOM(self, action):
         """
@@ -501,13 +570,13 @@ class ChatEngine(ActionEngine):
                     'type': constants.DELETE_CHAT_ROOM_SUCCESS,
                     'roomId': roomId
                 })
-        except room_type.DoesNotExist: # room does not exist
+        except room_type.DoesNotExist:  # room does not exist
             self.send({
                 'type': constants.DELETE_CHAT_ROOM_FAILURE,
                 'roomId': roomId,
                 'error': _('The room you are trying to delete does not exist. Holy Twilight Zone.')
             })
-        except ProtectedError: # protected foreign key reference restricting deletion
+        except ProtectedError:  # protected foreign key reference restricting deletion
             self.send({
                 'type': constants.DELETE_CHAT_ROOM_FAILURE,
                 'roomId': roomId,
@@ -525,14 +594,13 @@ class ChatEngine(ActionEngine):
         room = self._check_room_type(action).objects.get(pk=roomId)
         room.active = False
         room.save()
-        other_users = room.users.exclude(username=self.message.user.username)
+        other_users = room.users.exclude(username=self.channel_session['user'])
 
         for user in other_users:
             self.send_to_group(self.get_control_channel(user.username), {
                 'type': constants.CLOSE_CHAT_ROOM,
                 'roomId': roomId
             })
-
 
     def SET_ALL_ROOMS_INACTIVE(self, action):
         username = self.message.channel_session['user']
@@ -557,11 +625,11 @@ class ChatEngine(ActionEngine):
         username = self.message.channel_session['user']
         room_id = action['roomId']
         r_model = self._check_room_type(action)
-        room = r_model.objects.get(id=room_id)
-        #room.active = False
-        #room.save()
+        room = r_model.through_objects.by_id(room_id).prefetch().first()
+        # room.active = False
+        # room.save()
         for user in room.users.exclude(username=username):
-            room_channel = self.get_room_channel(room, room_id)
+            room_channel = self.get_control_channel(user.username)
             self.send_to_group(room_channel, {
                 'type': constants.SET_ROOM_CONTENT,
                 'roomId': room_id,
@@ -582,14 +650,14 @@ class ChatEngine(ActionEngine):
     """
 
     def SET_ROOM_ACTIVE(self, action):
-        username = self.message.channel_session['user']  # action['user']
+        username = self.message.channel_session['user']
         room_id = action['roomId']
         r_model = self._check_room_type(action)
-        room = r_model.objects.get(id=room_id)
+        room = r_model.through_objects.by_id(room_id).prefetch().first()
         room.active = True
         room.save()
         for user in room.users.exclude(username=username):
-            room_channel = self.get_room_channel(room, room_id)
+            room_channel = self.get_control_channel(user.username)
             self.send_to_group(room_channel, {
                 'type': constants.SET_ROOM_ACTIVE,
                 'active': True,
@@ -604,22 +672,28 @@ class ChatEngine(ActionEngine):
     """
 
     def SET_ROOM_IS_TYPING(self, action):
-        username = self.message.user.username
-        roomId = action['roomId']
+        username = self.message.channel_session['user']
+        room_id = action['roomId']
+
+        #user_id = action['userId']
+
+        # TODO: group chat we send the user_id and then update the redux state for the attached clients, this enhancement could show who is typing in the room instead of just whether somebody is typing.
+        # TODO: consider removal of this feature altogether for performance reasons. Reason: unnecessary websocket calls
+
         r_model = self._check_room_type(action)
-        room = r_model.objects.get(id=roomId)
+        room = r_model.through_objects.by_id(room_id).prefetch().first()
         for user in room.users.exclude(username=username):
             room_channel = self.get_control_channel(user.username)
             self.send_to_group(room_channel, {
                 'type': constants.SET_ROOM_CONTENT,
-                'roomId': roomId,
+                'roomId': room_id,
                 'rModel': action.get('rModel', r_model.__name__)
             })
 
             self.send_to_group(room_channel, {
                 'type': constants.SET_ROOM_IS_TYPING,
                 'isTyping': action['isTyping'],
-                'roomId': roomId,
+                'roomId': room_id,
                 'rModel': action.get('rModel', r_model.__name__)
             })
 
@@ -632,7 +706,7 @@ class ChatEngine(ActionEngine):
         :param action['rModel']: (roomModel) default to chat.Room
         
         TODO: Check that the user is a member of that room (prevent
-        cross posting into rooms they lack membership to)
+        cross posting into rooms they lack membership to) ** SECURITY ENHANCEMENT **
         """
         room_type = self._check_room_type(action)
         room = room_type.objects.get(id=action['roomId'])
@@ -645,7 +719,7 @@ class ChatEngine(ActionEngine):
             room_user = room.users.through.objects.get(user__username=username, room=room)
         except room.users.through.DoesNotExist:
             room_user = room.users.through.objects.create(user=user, room=room)
-        #try:
+        # try:
         room_user.last_activity = timezone.now()
         room_user.save()
 
@@ -657,7 +731,8 @@ class ChatEngine(ActionEngine):
         # The client will have received the message id after a successful file upload.
         # Now, we can retrieve the message and dispatch to the recipients, otherwise we create the message with the
         #   message provided.
-        message = m_model.objects.get(id=action.get('id', 0)) if 'id' in action else m_model.objects.create(
+        message = m_model.objects.filter(id=action.get('id', 0)).select_related('user__profile', 'room') \
+            if 'id' in action else m_model.objects.create(
                 user=room_user.user,
                 room=room,
                 content=action['content'],
@@ -670,10 +745,11 @@ class ChatEngine(ActionEngine):
             room_channel = self.get_control_channel(u.username)
             self.send_to_group(room_channel, {
                 'type': constants.RECEIVE_MESSAGES,
-                'message': self._message_serializer_by_type(m_model)(message, context={'request': request}).data
+                'message': self._message_serializer_by_type(m_model)(message, context={'request': request}).data,
+                'rModel': room_type.__class__.__name__
             })
-        #except Exception as error:
-            #print(error)  #TODO send error back to client of user sending the message
+        # except Exception as error:
+        # print(error)  #TODO send error back to client of user sending the message
 
     def REQUEST_MESSAGES(self, action, offset=0, limit=20):
         """
@@ -687,7 +763,7 @@ class ChatEngine(ActionEngine):
         # offset and limit to handle fetching older messages
 
         params = Q()
-        username = ''
+        username = message.channel_session['user']
         user = {}
         m_model = self._check_message_type(action)
         if 'roomId' in action:
@@ -705,10 +781,11 @@ class ChatEngine(ActionEngine):
             prior = m_model.objects.get(id=action['firstMessageId'])
             params &= Q(timestamp__lt=prior.timestamp)
 
+        # TODO: make a prefetched version, Add a manager and queryset to BaseMessage and override in Message and GroupMessage. Then, alter serializer to use cached results.
         messages = m_model.objects.filter(
             params
         ).select_related(
-            'user'
+            'user__profile'
         ).order_by('-timestamp')[offset:offset + limit]
 
         # if the messages query does not return anything, set end var to True so the client knows to stop requesting
@@ -719,8 +796,8 @@ class ChatEngine(ActionEngine):
         # fake request object that contains user,
         # this is because the serializers requires context['request'] with 'user'
         request = MyDict()
-        request.user = self.message.user
-
+        request.user = User.objects.filter(username=username)
+        print(user)
         self.send({
             'type': constants.RECEIVE_MESSAGES,
             'roomId': action['roomId'],

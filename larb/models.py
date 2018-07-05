@@ -239,6 +239,7 @@ class UserProfile(models.Model, PictureMixin):
         If the user is logged in and has verified hisser email address, return True,
         otherwise return False
         """
+        # TODO: cache whether user is verified and access from there instead of db
         result = EmailAddress.objects.filter(email=self.user.email)
         if len(result):
             return result[0].verified

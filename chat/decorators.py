@@ -99,11 +99,10 @@ def jwt_user_from_session(func):
         except ValueError:
             _close_reply_channel(message)
             raise
-
-        message.token = channel_session['token']
-        user = authenticate(message.token)
+        user = authenticate(channel_session['token'])
 
         message.user = user
+        print(message.user)
         message.text = dumps(message_text_json)
 
         return func(message, *args, **kwargs)

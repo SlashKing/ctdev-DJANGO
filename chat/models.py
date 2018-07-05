@@ -14,24 +14,35 @@ from rest_flag import enable_flagging_on
 
 def is_int_or_user(user=None):
     if isinstance(user, get_user_model()):
-         return True, User
+         return True, get_user_model()
     elif isinstance(user, int):
         return True, int
     return False, None
 
+def normalize_latlong(location=None):
+    latitude = 0
+    longitude = 0
+    if location is not None:
+        latitude = location.x
+        longitude = location.y
+    return {
+        'latitude': latitude,
+        'longitude': longitude
+    }
 
 class JoinRequest(models.Model):
     object_id = models.PositiveIntegerField()
     content_type = models.ForeignKey(ContentType)
     content_object = GenericForeignKey("content_type", "object_id")
 
+    admin = models.BooleanField(default=False)
     message = models.TextField(max_length=500, default='', blank=True)
     created = models.DateTimeField(auto_now_add=True)
     rejected = models.DateTimeField(null=True, blank=True)
     viewed = models.DateTimeField(null=True, blank=True)
 
-    requested = models.ForeignKey(get_user_model(), related_name='requested', null=True)
-    requester = models.ForeignKey(get_user_model(), related_name='requester', null=True)
+    requested = models.ForeignKey(get_user_model(), related_name='sent_join_requests', null=True)
+    requester = models.ForeignKey(get_user_model(), related_name='received_join_requests', null=True)
 
     class Meta:
         verbose_name = _('Join Request')
@@ -42,8 +53,10 @@ class JoinRequest(models.Model):
         """ Accept this join request """
         # add users to the room
         qs = self.content_object.add_users([self.requested.id], activated=True)
+        # delete the requests associated
         self.delete()
 
+        # return QuerySet[GroupChatUser]
         return qs
 
     def reject(self):
@@ -53,8 +66,8 @@ class JoinRequest(models.Model):
         return qs
 
     def cancel(self):
-        # first delete the chat users associated with the user in the room
-        self.content_object.users.through.objects.all().delete()
+        # first delete the chat user associated with the join request
+        self.content_object.users.through.objects.filter(room=self.content_object, user_id=self.requester.id).delete()
 
         #delete the request
         self.delete()
@@ -66,31 +79,118 @@ class JoinRequest(models.Model):
         self.save()
         return True
 
+    @property
+    def is_viewed(self):
+        return True if self.viewed is not None else False
+
+    @property
+    def is_rejected(self):
+        return True if self.rejected is not None else False
+
+
+class BaseRoomQuerySet(models.QuerySet):
+    def rooms(self, user=None):
+        from django.db.models import Prefetch, F,Q
+        """
+            :param user <int | User>:
+
+            :return QuerySet[self.users.through<ChatUser | GroupChatUser>] or self.users.through<<ChatUser | GroupChatUser>:
+        """
+        if user is None:
+            return self.filter(active=True)
+        bool, user_type = is_int_or_user(user)
+        params = Q()
+        if bool:
+            params &= Q(users=user)
+        if isinstance(user, list):
+            for u in user:
+                params &= Q(users=u)
+        return self.filter(params)
+
+    def users_by_admin_status(self, admin=True):
+        return self.filter(users__admin=admin)
+
+    def by_user(self, user=None):
+        return self.filter(users=user)
+
+    def by_active(self, active=True):
+        return self.filter(active=active)
+
+    def by_id(self, id=None):
+        return self.filter(id=id)
+
+    def prefetch(self, user=None):
+        from django.db.models import Prefetch
+        return self.prefetch_related(
+            Prefetch(
+                'chatuser_set',
+                queryset=ChatUser.objects.select_related('user__profile', 'user__profile__profile_image').exclude(user=user),
+                to_attr='chatusers'
+            )
+        ).prefetch_related(
+            Prefetch(
+                'messages',
+                queryset=Message.objects.select_related('user__profile', 'user__profile__profile_image', 'room').order_by('-timestamp').distinct(),
+                to_attr='m_messages'
+            )
+        ).distinct()
+
+class BaseRoomManager(models.Manager):
+    def get_queryset(self):
+        return BaseRoomQuerySet(self.model, using=self._db)
+
+    def rooms(self, user=None):
+        if user is None:
+            return self.get_queryset().rooms()
+        return self.get_queryset().rooms(user)
+
+    def by_user(self, user=None):
+        return self.get_queryset().by_user(user)
+
+    def by_active(self, active=True):
+        return self.get_queryset().by_active(active)
+
+    def by_id(self, id=None):
+        return self.get_queryset().by_id(id)
+
+    def prefetch(self, user=None):
+        return self.get_queryset().prefetch(user).distinct()
+
 
 class BaseRoom(models.Model):
     # we model more generally to allow multi-user rooms
-    users = models.ManyToManyField(get_user_model(), through='ChatUser', through_fields=('room', 'user'))
+    users = models.ManyToManyField(get_user_model(), related_name='rooms', through='ChatUser', through_fields=('room', 'user'))
     active = models.BooleanField(default=True)
     # This will let users rename the title of the room
     title = models.TextField(default='')
     join_requests = GenericRelation(JoinRequest)
+    objects = BaseRoomManager()
+    through_objects = BaseRoomManager()
 
-    def add_users(self, users, activated=True):
+    def add_users(self, users=[], activated=None):
         qs = []
+        defaults = {}
+        # we use the activated keyword argument to determine if it's a group chat
+        # a user is created so they are added to the websocket channel to listen to updates on their join request status
+        # TODO: separate logic for each room type, this could get long and ugly eventually, right now it's manageable
+        if activated is not None:
+            defaults['activated'] = activated
+
         for user in users:
             try:
                 # if is User model
                 if isinstance(user, get_user_model()):
-                    instance, created = self.users.through.objects.get_or_create(user=user, room=self, defaults={'activated':activated})
+                    instance, created = self.users.through.objects.get_or_create(user=user, room=self, defaults=defaults)
                 # if is integer (id)
                 elif isinstance(user, int):
-                    instance, created = self.users.through.objects.get_or_create(user_id=user, room=self, defaults={'activated':activated})
+                    instance, created = self.users.through.objects.get_or_create(user_id=user, room=self, defaults=defaults)
                 else:
                     # ignore the addition of users that aren't by User model or id
                     raise TypeError(_("Users can only be added by id or User object"))
 
                 if not created:
-                    instance.set_activated(activated)
+                    if activated is not None:
+                        instance.set_activated(activated)
 
                 qs.append(instance)
             except IntegrityError: # User id doesn't exist, just skip and continue
@@ -133,15 +233,13 @@ class BaseRoom(models.Model):
         :return channel_name: string
         """
         the_string = []
-        for index, user in enumerate(self.users.exclude(username=current_username)):
-            # return title if it's set
-            if self.title is not '':
-                # add the title if it's empty, else break from loop
-                if len(the_string) is 0:
-                    the_string.append(self.title)
-                else:
-                    break
-            else:
+        # return title if it's set
+        if self.title is not '':
+            # add the title if it's empty, else break from loop
+            if len(the_string) is 0:
+                the_string.append(self.title)
+        else:
+            for index, user in enumerate(self.users.exclude(username=current_username)):
                 if index == 4:
                     break
                 # if user has set first name, use it
@@ -242,8 +340,53 @@ class BaseMessage(models.Model):
         """
         self.objects.create(room=room, user=user)
 
+
 class Message(BaseMessage):
     pass
+
+
+
+class GroupRoomQuerySet(BaseRoomQuerySet):
+    def by_private(self, private=False):
+        return self.filter(private=private)
+
+    def prefetch(self):
+        from django.db.models import Prefetch
+        #TODO: prefetch .users? or revoke the field from the query because we retrieve them in the groupchatuser_set...
+        return self.prefetch_related(
+            Prefetch(
+                'join_requests',
+                queryset=JoinRequest.objects.select_related('requested__profile', 'requester__profile', 'requester__profile__profile_image', 'requested__profile__profile_image'),
+                to_attr='join_requests_cache'
+            ),
+            Prefetch(
+                'groupchatuser_set',
+                queryset=GroupChatUser.objects.select_related('user__profile', 'user__profile__profile_image').order_by('-admin'),
+                to_attr='chatusers'
+            ),
+            #'users',
+            Prefetch(
+                'g_messages',
+                queryset=GroupMessage.objects.select_related(
+                    'user__profile', 'user__profile__profile_image').order_by('-timestamp').prefetch_related(
+                    'user__profile__images'
+                ),
+                to_attr='gg_messages'
+            )
+        ).distinct()
+
+
+class GroupRoomManager(BaseRoomManager):
+    def get_queryset(self):
+        """ Must pass through the altered QuerySet on init"""
+        return GroupRoomQuerySet(self.model, using=self._db)
+
+    def by_private(self, private=False):
+        return self.get_queryset().by_private(private)
+
+    def prefetch(self):
+        return self.get_queryset().prefetch()
+
 
 class GroupRoom(BaseRoom):
     """ GroupRoom extends Room
@@ -251,12 +394,12 @@ class GroupRoom(BaseRoom):
     REASONING FOR DUPLICATION:
     1) Helps to distribute the data and decouple each chat application
     """
-    users = models.ManyToManyField(get_user_model(), through='GroupChatUser', through_fields=('room', 'user'))
+    users = models.ManyToManyField(get_user_model(), related_name='group_rooms',  through='GroupChatUser', through_fields=('room', 'user','admin','silenced', 'active'))
     expiry = models.DateTimeField(default=None, blank=True, null=True)
     private = models.BooleanField(default=False)
     location = PointField(srid=4326, null=True, blank=True)
     objects = GeoManager()
-
+    through_objects = GroupRoomManager()
     def channel_name(self, room_id=None):
         """
 
@@ -265,24 +408,17 @@ class GroupRoom(BaseRoom):
         """
         return room_id if room_id is not None else self.id
 
-    def add_join_request(self, requester=None, requested=None, message=None):
-        try:
-            jr = JoinRequest.create(requester_id=requester, requested_id=requested, content_object=self)
-            return jr
-        except IntegrityError:
-            return False
+    def add_join_request(self, requester=None, requested=None, admin=False, message=None):
+        jr = JoinRequest.objects.get_or_create(requester_id=requester,
+                                               requested_id=requested,
+                                               admin=admin,
+                                               message=message,
+                                               content_object=self)
+        return jr
 
     @property
     def lat_long(self):
-        latitude = 0
-        longitude = 0
-        if self.location is not None:
-            latitude = self.location.x
-            longitude = self.location.y
-        return {
-            'latitude': latitude,
-            'longitude': longitude
-        }
+        return normalize_latlong(self.location)
 
     @property
     def expired(self):
@@ -290,8 +426,7 @@ class GroupRoom(BaseRoom):
 
     def add_admin_user(self, user=None, users=None):
         if users is not None and len(users) > 0:
-            self.users.through.objects.filter(id__in=users).update(admin=True)
-            return True
+            return self.users.through.objects.filter(id__in=users).update(admin=True)
         if user is not None:
             instance, created = self.users.through.objects.get_or_create(user_id=user, admin=True, room=self)
             return instance
@@ -350,7 +485,7 @@ class GroupChatUser(BaseChatUser):
 
     @property
     def location(self):
-        return self.user.profile.location
+        return normalize_latlong(self.location)
 
 enable_flagging_on(Message)
 enable_flagging_on(GroupMessage)
