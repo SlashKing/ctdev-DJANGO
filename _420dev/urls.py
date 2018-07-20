@@ -12,8 +12,7 @@ from rest_framework.authtoken.views import obtain_auth_token
 from rest_friendship import urls
 from api.views import UploadedFileViewSet, NotificationViewSet, UserProfileViewSet, UserViewSet, PostViewSet, \
     CommentViewSet, VoteViewSet, HashTagViewSet, HashTaggedItemViewSet
-from chat.views import MessageViewSet, GroupMessageViewSet, GroupChatUserListView
-from chat.serializers import ReducedUserSerializer
+from chat.views import MessageViewSet, GroupMessageViewSet, GroupChatUserListView, RoomViewSet#, GroupRoomViewSet
 from larb.views import FacebookLogin
 from django.views.generic.base import RedirectView
 from django.contrib.auth.views import PasswordResetConfirmView
@@ -23,6 +22,8 @@ from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = DefaultRouter()
+#router.register(r'g_rooms', GroupRoomViewSet)
+router.register(r'rooms', RoomViewSet)
 router.register(r'messages', MessageViewSet)
 router.register(r'g_messages', GroupMessageViewSet)
 router.register(r'uploaded_files', UploadedFileViewSet)
@@ -71,15 +72,6 @@ urlpatterns = [
     url(r'^auth-jwt-verify/', verify_jwt_token),
     url(r'^', include('larb.urls')),
     #### IMPORTANT!!! needs to be last, catch all used to send all other requests to React
-    # url(r'^admin/', include(wagtailadmin_urls)),
-    # url(r'^search/', include(wagtailsearch_urls)),
-    # url(r'^documents/', include(wagtaildocs_urls)),
-    # url(r'^weed/inplaceeditform/', include('inplaceeditform.urls')),
-
-    # For anything not caught by a more specific rule above, hand over to
-    # Wagtail's serving mechanism
-    # url(r'^', include(wagtail_urls)),
-
 ]
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

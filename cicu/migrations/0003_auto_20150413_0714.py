@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='uploadedfile',
             name='content_type',
-            field=models.ForeignKey(to='contenttypes.ContentType'),
+            field=models.ForeignKey(on_delete=models.deletion.CASCADE, to='contenttypes.ContentType'),
             preserve_default=True,
         ),
         migrations.AlterField(

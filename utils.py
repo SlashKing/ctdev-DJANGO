@@ -3,7 +3,7 @@ import json
 import urllib
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.db.utils import IntegrityError
 from django.utils.encoding import force_str, force_text, force_bytes
 from hashtags.models import HashTag, HashTagged_Item

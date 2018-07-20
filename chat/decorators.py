@@ -19,6 +19,7 @@ def authenticate(token):
     Based on jwt_auth.JSONWebTokenAuthMixin.authenticate
     """
     try:
+        print("got here", token)
         payload = jwt_decode_handler(token)
     except jwt.ExpiredSignature:
         msg = 'Signature has expired.'

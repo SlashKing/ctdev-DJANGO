@@ -7,7 +7,7 @@ from hashtags.models import *
 from friendship.models import *
 from api.serializers import *
 from notifications.models import Notification
-from rest_friendship.serializers import UserProfileSerializer, ProfilePictureSerializer
+from rest_friendship.serializers import CurrentUserSerializer, UserProfileSerializer, ProfilePictureSerializer
 from api.filters import *
 from api.permissions import *
 from _420dev.settings import MEDIA_URL
@@ -30,8 +30,6 @@ from rest_auth.utils import jwt_encode
 from django.utils.translation import ugettext_lazy as _
 from django.core.files.storage import default_storage as storage
 from cicu.serializers import FileUploadSerializer, ProfilePrioritySerializer
-from chat.models import Room
-from chat.serializers import RoomSerializer
 
 try:
     from django.utils import simplejson
@@ -118,7 +116,7 @@ class UploadedFileViewSet(viewsets.ModelViewSet):
                 uploaded_file.save()
                 self.serializer = current_serializer(uploaded_file, context={'request': request})
             except:
-                return Response(_('There was an error creating the uploaded file'), status.HTTP_400_BAD_REQUEST)
+                return Response(str(_('There was an error creating the uploaded file')), status.HTTP_400_BAD_REQUEST)
 
             return Response(self.serializer.data, status.HTTP_201_CREATED)
 
@@ -126,6 +124,7 @@ class UploadedFileViewSet(viewsets.ModelViewSet):
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.none()
     serializer_class = NotificationSerializer
+    serializer = NotificationSerializer
 
     def get_queryset(self):
         filter = self.request.query_params.get('filter')
@@ -141,7 +140,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(self.queryset)
         if page is not None:
             serializer = NotificationSerializer(page, context={'request': request}, many=True)
-            return self.get_paginated_response(serializer.data)
+            return self.get_paginated_response(page)
         return Response(NotificationSerializer(self.queryset, many=True, context={'request': request}).data)
 
     @list_route(methods=['POST'])
@@ -237,7 +236,7 @@ class UserProfileViewSet(
         try:
             obj = get_object_or_404(UserProfile, pk=pk)
         except:
-            raise serializers.ValidationError(_(u"Invalid primary key data"))
+            raise serializers.ValidationError(str(_(u"Invalid primary key data")))
         if int(pk) is int(request.user.profile.pk) or request.user.is_staff:
             validated_data = request.data
             profile = self.get_object()
@@ -275,7 +274,7 @@ class UserProfileViewSet(
                 UploadedFile.objects.upload(request.user, serializer.validated_data, request.user.profile)
 
             return_data = UserSerializer(request.user, context={'request': request}).data
-            return_data.update({'success': _('Priority of profile image was switched successfully!')})
+            return_data.update({'success': str(_('Priority of profile image was switched successfully!'))})
 
             return Response(
                 return_data,
@@ -299,7 +298,7 @@ class UserProfileViewSet(
             UploadedFile.objects.upload(request.user, serializer.validated_data, request.user.profile)
 
             return_data = UserSerializer(request.user, context={'request': request}).data
-            return_data.update({'success': _('Profile picture was added successfully!')})
+            return_data.update({'success': str(_('Profile picture was added successfully!'))})
 
             return Response(
                 return_data,
@@ -320,7 +319,7 @@ class UserProfileViewSet(
         serializer = FileUploadSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             return_data = UserSerializer(request.user, context={'request': request}).data
-            return_data.update({'success': _('Cover picture was added successfully!')})
+            return_data.update({'success': str(_('Cover picture was added successfully!'))})
             return Response(
                 return_data,
                 status.HTTP_201_CREATED
@@ -339,7 +338,7 @@ class UserProfileViewSet(
             ).delete()
 
             return Response({
-                'success': _('All of your swipes were deleted')
+                'success': str(_('All of your swipes were deleted'))
             })
         else:
             raise serializers.PermissionDenied(u"You can't alter other user's account information. Nice try though")
@@ -405,23 +404,25 @@ class UserViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):
         # get current logged in user if at all, will use to authenticate React.js #
         if pk == 'i':
-            return Response(UserSerializer(request.user, context={'request': request}).data)
+            return Response(CurrentUserSerializer(request.user, context={'request': request}).data)
         return super(UserViewSet, self).retrieve(request, pk)
 
     @detail_route(methods=['post'])
     def report(self, request, pk=None):
-        from chat.serializers import UserReportSerializer
+        from chat.engine.serializers import UserReportSerializer
         try:
             request.data.update({'reporter': request.user.id, 'reportee': pk})
             report = UserReportSerializer(data=request.data)
             if report.is_valid():
                 report.save()
-                return Response({'success': _(
-                    'We treat your privacy and security seriously; we will be investigating this report promptly. You may be contacted for further discussion.')})
+                return Response({'success': str(_(
+                    'We treat your privacy and security seriously; we will be investigating this report promptly. You may be contacted for further discussion.'
+                    ))
+                })
             return Response({'errors': report.errors})
         except:
-            return Response({'error': _(
-                'We encountered an error when trying to create the user report in the database. The dev team has been notified.')})
+            return Response({'error': str(_(
+                'We encountered an error when trying to create the user report in the database. The dev team has been notified.'))})
 
     #@list_route(methods=['post'])
     #def upload(self, request):
@@ -463,12 +464,15 @@ class UserViewSet(viewsets.ModelViewSet):
     #    return Response(simplejson.dumps(data))
 
     def partial_update(self, request, pk=None):
+
         try:
             get_object_or_404(User, pk=pk)
         except:
             raise serializers.ValidationError(_(u"Invalid primary key data"), code=status.HTTP_400_BAD_REQUEST)
+
         if int(pk) is int(request.user.pk) or request.user.is_staff:
             serializer = self.get_serializer(data=request.data, partial=True)
+
             if serializer.is_valid():
                 super(UserViewSet, self).partial_update(request, pk)
                 data = {'user': self.get_object(), 'token': jwt_encode(self.get_object())}
@@ -496,7 +500,10 @@ class PostViewSet(viewsets.ModelViewSet):
         filter = self.request.query_params.get('filter', None)
         if filter is not None:
             # raw query to check whether the filter appears in any of the comments for the post
-            query = "SELECT * FROM(SELECT DISTINCT ON(user_post.id) user_post.id,user_post.pub_date,user_post.text,user_post.user_id FROM user_post FULL OUTER JOIN django_comments ON (user_post.id = django_comments.object_pk::integer) WHERE user_post.text LIKE %s OR django_comments.comment LIKE %s)user_post ORDER BY user_post.pub_date DESC"
+            query = "SELECT * FROM(SELECT DISTINCT ON(user_post.id) user_post.id,user_post.pub_date," \
+                    "user_post.text,user_post.user_id FROM user_post FULL OUTER JOIN django_comments " \
+                    "ON (user_post.id = django_comments.object_pk::integer) WHERE user_post.text LIKE %s" \
+                    "OR django_comments.comment LIKE %s)user_post ORDER BY user_post.pub_date DESC"
             # this is ugly because django adds an apostrophe to the outside of string
             # and each % must be escaped with another %
 
@@ -541,11 +548,10 @@ class PostViewSet(viewsets.ModelViewSet):
                     p.file.delete(save=False)
         try:
             post.delete()
-            return Response({'response': _('Your post was deleted successfully.')})
+            return Response({'response': str(_('Your post was deleted successfully.'))})
         except:
             return Response({
-                'error': _(
-                    'Post cannot be deleted at this time. Sorry for the inconvenience, our dev team has been notified of the issue')})
+                'error': str(_('Post cannot be deleted at this time. Sorry for the inconvenience, our dev team has been notified of the issue'))})
         # super(PostViewSet, self).destroy(request, *args, **kwargs)
 
     def create(self, request):
@@ -690,6 +696,13 @@ class VoteViewSet(viewsets.ModelViewSet):
 
     @detail_route(methods=["POST"])
     def unmatch(self, request, pk=None):
+        """
+        Set the vote to -1 so the user doesn't show up in results again until their swipe are deleted
+
+        :param request:
+        :param pk:
+        :return :
+        """
         try:
             vote = Vote.objects.get(
                 Q(token=request.user.id) &
@@ -698,8 +711,8 @@ class VoteViewSet(viewsets.ModelViewSet):
             vote.vote = -1
             vote.save()
         except Vote.DoesNotExist:
-            return Response({'error': _('Sorry, that match does not exist')})
-        return Response({'response': _('Successfully unmatched')})
+            return Response({'error': str(_('Sorry, that match does not exist'))})
+        return Response({'response': str(_('Successfully unmatched'))})
 
 
 

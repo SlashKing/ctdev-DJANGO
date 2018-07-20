@@ -8,7 +8,6 @@ from .utils import import_from_string
 from larb.models import UserProfile
 from cicu.models import UploadedFile, ProfilePicture
 from secretballot.models import Vote
-
 config = apps.get_app_config('rest_friendship')
 
 
@@ -141,16 +140,70 @@ class UserProfileSerializer(serializers.ModelSerializer):
 from rest_framework.validators import UniqueValidator
 
 
+#class CurrentUserSerializer(serializers.ModelSerializer):
+#    username = serializers.CharField(
+#        max_length=30,
+#        validators=[UniqueValidator(queryset=get_user_model().objects.all())]
+#    )
+#    profile = UserProfileSerializer()
+#
+#    class Meta:
+#        model = get_user_model()
+#        fields = ('id', 'username', 'notifications', 'profile',)
+
+
+class MatchNotificationSerializer(serializers.Serializer):
+    username = serializers.SerializerMethodField()
+    profile = serializers.SerializerMethodField()
+
+    def get_username(self, obj):
+        return obj.target.user.username
+
+    def get_profile(self, obj):
+        return UserProfileSerializer(obj.target, context={'request': self.context['request']}).data #
+
+    class Meta:
+        fields = ('username', 'profile')
+
 class CurrentUserSerializer(serializers.ModelSerializer):
     username = serializers.CharField(
         max_length=30,
         validators=[UniqueValidator(queryset=get_user_model().objects.all())]
     )
     profile = UserProfileSerializer()
+    sent_join_requests = serializers.SerializerMethodField()
+    received_join_requests = serializers.SerializerMethodField()
+    match_notifications = serializers.SerializerMethodField()
+
+    def get_match_notifications(self, obj):
+        return MatchNotificationSerializer(
+            obj.notifications.select_related('target_content_type', 'action_object_content_type').filter(
+                unread=True,
+                target_object_id=self.context['request'].user.profile.id,
+                target_content_type=ContentType.objects.get_for_model(UserProfile),
+                action_object_content_type=ContentType.objects.get_for_model(Vote)), #.count(),
+            context={'request': self.context['request']}, many=True
+        ).data
+
+    def get_sent_join_requests(self, obj):
+        from chat.engine.serializers import JoinRequestWithRoomSerializer
+
+        return JoinRequestWithRoomSerializer(
+            obj.sent_join_requests.select_related('content_type').all(),
+            context={'request': self.context['request']},
+            many=True).data
+
+    def get_received_join_requests(self, obj):
+        from chat.engine.serializers import JoinRequestWithRoomSerializer
+
+        return JoinRequestWithRoomSerializer(
+            obj.received_join_requests.select_related('content_type').all(),
+            context={'request': self.context['request']},
+            many=True).data
 
     class Meta:
         model = get_user_model()
-        fields = ('id', 'username', 'notifications', 'profile',)
+        fields = ('id', 'username', 'notifications', 'sent_join_requests', 'received_join_requests', 'profile', 'match_notifications')
 
 
 class UserSerializer(serializers.ModelSerializer):

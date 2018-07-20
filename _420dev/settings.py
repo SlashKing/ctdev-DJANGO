@@ -30,8 +30,8 @@ SITE_ID=2
 
 INSTALLED_APPS = (
 	'crispy_forms',
-	'dal',
-	'dal_select2',
+	#dal',
+	#'dal_select2',
 	#'djangocms_admin_style',  # for the admin skin. You **must** add 'djangocms_admin_style' in the list **before** 'django.contrib.admin'
     'django.contrib.admin',
     'django.contrib.auth',
@@ -99,7 +99,7 @@ INSTALLED_APPS = (
     'larb',
 )
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     #'wagtail.wagtailcore.middleware.SiteMiddleware',
     #'wagtail.wagtailredirects.middleware.RedirectMiddleware',
 	'django.middleware.cache.UpdateCacheMiddleware',
@@ -248,12 +248,12 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
         #'rest_framework.permissions.AllowAny',
     ],
-    'DEFAULT_FILTER_BACKENDS': ('rest_framework.filters.DjangoFilterBackend',),
+    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
 }
 
 REST_AUTH_SERIALIZERS = {
-    'USER_DETAILS_SERIALIZER': 'rest_friendship.serializers.UserSerializer',
+    'USER_DETAILS_SERIALIZER': 'rest_friendship.serializers.CurrentUserSerializer',
     'JWT_SERIALIZER': 'lbc_rest_auth.serializers.LBCJWTTokenSerializer',
     'TOKEN_SERIALIZER': 'lbc_rest_auth.serializers.LBCJWTTokenSerializer',
 }
@@ -268,7 +268,7 @@ JWT_AUTH = {
     'JWT_ALLOW_REFRESH': True,
     'JWT_EXPIRATION_DELTA': datetime.timedelta(seconds=24*60*60*REFRESH_TOKEN_DAYS)
 }
-REST_SESSION_LOGIN = False
+REST_SESSION_LOGIN = True
 REST_USE_JWT = True
 ###########
 # GENERAL #

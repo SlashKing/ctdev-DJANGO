@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='hashtagged_item',
             name='hashtag',
-            field=models.ForeignKey(related_name='hashtag_hashtagged_items', to='hashtags.HashTag'),
+            field=models.ForeignKey(on_delete=models.deletion.CASCADE, related_name='hashtag_hashtagged_items', to='hashtags.HashTag'),
             preserve_default=True,
         ),
     ]

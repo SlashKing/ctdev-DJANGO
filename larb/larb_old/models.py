@@ -14,7 +14,7 @@ from picture_comments.models import PictureComment
 from hashtags.models import HashTagged_Item, HashTag
 import secretballot
 from cicu.models import UploadedFile
-from django.contrib.gis.db.models import PointField, GeoManager
+from django.contrib.gis.db.models import PointField
 from .countries import *
 from .states import *
 class PictureMixin(object):
@@ -245,7 +245,6 @@ class UserProfile(models.Model, PictureMixin):
                               default=BI)
 	maxdistance = models.SmallIntegerField(validators=[MaxValueValidator(2500), MinValueValidator(1)],
 		blank=True,default=250)
-	objects = GeoManager()
     
 	def __str__(self):
 		return "%s's profile" % self.user

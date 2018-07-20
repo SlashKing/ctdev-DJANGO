@@ -80,12 +80,12 @@ class LBCJWTTokenSerializer(JWTSerializer):
 	Serializer for JWT authentication.
 	"""
 
-    token_dec = serializers.SerializerMethodField()
+    expiry = serializers.SerializerMethodField()
     is_new = serializers.SerializerMethodField()
     user = serializers.SerializerMethodField()
 
-    def get_token_dec(self, obj):
-        return jwt_decode_handler(obj['token'])
+    def get_expiry(self, obj):
+        return jwt_decode_handler(obj['token'])['exp']
 
     def get_is_new(self, obj):
         """
@@ -105,12 +105,16 @@ class LBCJWTTokenSerializer(JWTSerializer):
             return False
 
     def get_user(self, obj):
+        from chat.engine.chat import MyDict
+        from rest_friendship.serializers import CurrentUserSerializer
+
+        request = MyDict()
+        user = obj['user']
+        request.user = user
         """
 		Required to allow using custom USER_DETAILS_SERIALIZER in
 		JWTSerializer. Defining it here to avoid circular imports
 		"""
-        req = None
-        user = obj['user']
-        req = {'profile': {'user': user}}
-        user_data = UserSerializer(user).data
+
+        user_data = CurrentUserSerializer(user, context={'request': request}).data
         return user_data

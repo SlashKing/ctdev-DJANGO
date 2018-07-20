@@ -31,9 +31,9 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(serialize=False, verbose_name='ID', primary_key=True, auto_created=True)),
                 ('object_id', models.PositiveIntegerField()),
-                ('content_type', models.ForeignKey(to='contenttypes.ContentType')),
-                ('hashtag', models.ForeignKey(related_name='hashtagged_items', to='hashtags.HashTag')),
-                ('user', models.ForeignKey(related_name='hashtag_users', to=settings.AUTH_USER_MODEL)),
+                ('content_type', models.ForeignKey(on_delete=models.deletion.CASCADE, to='contenttypes.ContentType')),
+                ('hashtag', models.ForeignKey(on_delete=models.deletion.CASCADE, related_name='hashtagged_items', to='hashtags.HashTag')),
+                ('user', models.ForeignKey(on_delete=models.deletion.CASCADE, related_name='hashtag_users', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name_plural': 'Hashtagged Items',

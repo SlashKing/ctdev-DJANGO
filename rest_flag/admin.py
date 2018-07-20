@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 from rest_flag.models import Flag, Reason, FlagInstance, CONTENT_APPROVED, \
     CONTENT_REJECTED, REVIEW

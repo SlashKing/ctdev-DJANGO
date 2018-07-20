@@ -12,9 +12,9 @@ from picture_comments.models import PictureComment
 from hashtags.models import HashTagged_Item, HashTag
 from hashtags.utils import link_hashtags_to_model, notify_on_mention
 from notifications.models import Notification
-import secretballot
+from secretballot import enable_voting_on
 from cicu.models import UploadedFile, ProfilePicture
-from django.contrib.gis.db.models import PointField, GeoManager
+from django.contrib.gis.db.models import PointField
 from .countries import *
 from .states import *
 from django.db.models import Q
@@ -33,7 +33,7 @@ class PictureMixin(object):
 
 
 class Post(models.Model, PictureMixin):
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     pub_date = models.DateTimeField(default=timezone_now())
     text = models.TextField()
     notifications = GenericRelation(Notification, content_type_field='action_object_content_type_id',
@@ -155,12 +155,12 @@ class UserProfile(models.Model, PictureMixin):
         (FEMALE, 'Female'),
         (BI, 'Bi-Sexual'),
     )
-    user = models.OneToOneField(User, related_name='profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     images = GenericRelation(ProfilePicture, related_query_name='profile', content_type_field='content_type_id', object_id_field='object_pk')
     profile_image = models.ForeignKey(
-        ProfilePicture, blank=True, null=True, default='', on_delete=models.CASCADE, related_name='profile_image')
+        ProfilePicture, blank=True, null=True, default='', on_delete=models.SET_NULL, related_name='profile_image')
     cover_image = models.ForeignKey(
-        UploadedFile, blank=True, null=True, default='', on_delete=models.CASCADE, related_name='cover_image')
+        UploadedFile, blank=True, null=True, default='', on_delete=models.SET_NULL, related_name='cover_image')
     about_me = models.TextField(null=True, blank=True)
     date_of_birth = models.DateTimeField(blank=True, null=False, default=timezone_now())
     user_type = models.CharField(max_length=2,
@@ -196,7 +196,6 @@ class UserProfile(models.Model, PictureMixin):
 
     maxdistance = models.SmallIntegerField(validators=[MaxValueValidator(2500), MinValueValidator(1)],
                                            blank=True, default=250)
-    objects = GeoManager()
 
     def __str__(self):
         return "%s's profile" % self.user
@@ -277,7 +276,8 @@ class UserProfile(models.Model, PictureMixin):
         return fromstr("POINT({0} {1})".format(latitude, longitude), srid=4326)
 
 
-secretballot.enable_voting_on(Post)
-secretballot.enable_voting_on(UserProfile)
+enable_voting_on(Post)
+enable_voting_on(UserProfile)
 
+# on Initialization, check if user exists or create a new instance
 User.profile = property(lambda u: UserProfile.objects.get_or_create(user=u)[0])

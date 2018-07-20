@@ -88,7 +88,7 @@ class UploadedFile(models.Model):
     content_object = GenericForeignKey('content_type_id', 'object_pk')
     object_pk = models.PositiveIntegerField(default=77)
     file = models.FileField(_('file'), validators=[validate_file_type], upload_to=upload_to)
-    user = models.ForeignKey(User, related_name="uploaded_files")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="uploaded_files")
     objects = FileManager()
 
     class Meta:

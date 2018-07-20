@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='uploadedfile',
             name='content_type',
-            field=models.ForeignKey(default=1, to='contenttypes.ContentType'),
+            field=models.ForeignKey(on_delete=models.deletion.CASCADE, default=1, to='contenttypes.ContentType'),
             preserve_default=True,
         ),
         migrations.AddField(
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='uploadedfile',
             name='user',
-            field=models.ForeignKey(default=1, to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(on_delete=models.deletion.CASCADE, default=1, to=settings.AUTH_USER_MODEL),
             preserve_default=True,
         ),
         migrations.AlterField(

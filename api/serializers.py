@@ -167,10 +167,12 @@ class SwipeSerializer(serializers.ModelSerializer):
     matched = serializers.SerializerMethodField()
     mega_match = serializers.SerializerMethodField()
 
+    #TODO: move this to Vote model and manage the Secretballot app in-house
     def _check_match(self, obj, is_mega=False):
         vote_to_match = 2 if is_mega else 1
         if 'request' in self.context:
             try:
+                #TODO: cache votes on creation and use cached result to check the match
                 other_vote = Vote.objects.get(
                     Q(token=obj.object_id) &
                     Q(object_id=self.context['request'].user.profile.id) &
@@ -216,35 +218,35 @@ class NotificationSerializer(serializers.ModelSerializer):
     content_object = serializers.SerializerMethodField()
 
     def get_content_object(self, value):
-        self.serializer = None
         if hasattr(value.action_object, 'content_object'):
             return PostSerializer(value.action_object.content_object, context={'request': self.context['request']}).data
         else:
-            return self.serializer
+            return None
 
     def get_target(self, value):
         serializer = None
         if isinstance(value.target, Post):
             serializer = PostSerializer(value.target, context={'request': self.context['request']})
-        if isinstance(value.target, PictureComment):
+        elif isinstance(value.target, PictureComment):
             serializer = CommentSerializer(value.target, context={'request': self.context['request']})
-        if isinstance(value.target, get_user_model()):
+        elif isinstance(value.target, get_user_model()):
             serializer = UserSerializer(value.target, context={'request': self.context['request']})
-
-        return serializer.data
+        else:
+            serializer = UserSerializer(value.recipient, context={'request': self.context['request']})
+        return serializer.data if serializer is not None else None
 
     def get_action_object(self, value):
-        self.serializer = None
+        serializer = None
         if value.action_object is not None:
             if isinstance(value.action_object, Post):
-                self.serializer = PostSerializer(value.action_object, context={'request': self.context['request']})
+                serializer = PostSerializer(value.action_object, context={'request': self.context['request']})
             if isinstance(value.action_object, get_user_model()):
-                self.serializer = UserSerializer(value.action_object, context={'request': self.context['request']})
+                serializer = UserSerializer(value.action_object, context={'request': self.context['request']})
             if isinstance(value.action_object, PictureComment):
-                self.serializer = CommentSerializer(value.action_object, context={'request': self.context['request']})
-            return self.serializer.data
+                serializer = CommentSerializer(value.action_object, context={'request': self.context['request']})
+            return serializer.data if serializer is not None else None
         else:
-            return self.serializer
+            return None
 
     class Meta:
         model = Notification

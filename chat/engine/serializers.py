@@ -1,19 +1,8 @@
-from .models import Message, GroupMessage, Room, GroupRoom, ChatUser, GroupChatUser, UserReport, JoinRequest
-from rest_framework.serializers import *
+from chat.models import Message, GroupMessage, Room, GroupRoom, ChatUser, GroupChatUser, UserReport, JoinRequest
+from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_friendship.serializers import UserSerializer, FriendSerializer, UserProfileSerializer, UploadedFileSerializer
 from chat.engine.utils import timestamp
 from django.conf import settings
-
-
-class SimpleRoomSerializer(ModelSerializer):
-    class Meta:
-        model = Room
-        fields = ('id',)
-
-class SimpleGroupRoomSerializer(ModelSerializer):
-    class Meta:
-        model = GroupRoom
-        fields = ('id',)
 
 
 class MessageSerializer(ModelSerializer):
@@ -133,7 +122,6 @@ class RoomSerializer(ModelSerializer):
     msg_serializer = MessageSerializer
 
     def get_notifications_count(self, obj):
-        print(obj.notifications_count)
         return obj.notifications_count if hasattr(obj, 'notifications_count') else 0
 
     def get_name(self, obj):

@@ -21,9 +21,9 @@ class HashTag(models.Model):
 	get_absolute_url = models.permalink(get_absolute_url)
     
 class HashTagged_Item(models.Model):
-	user = models.ForeignKey(User, related_name='hashtag_users')
-	hashtag = models.ForeignKey(HashTag, related_name='hashtag_hashtagged_items')
-	content_type = models.ForeignKey(ContentType)
+	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='hashtag_users')
+	hashtag = models.ForeignKey(HashTag, on_delete=models.CASCADE, related_name='hashtag_hashtagged_items')
+	content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
 	object_id = models.PositiveIntegerField()
 	content_object = GenericForeignKey('content_type', 'object_id')
 	def __str__(self):

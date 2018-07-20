@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 
 from ..models import Reason
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 
 User = get_user_model()
 user_model = ''

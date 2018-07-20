@@ -40,14 +40,14 @@ class Reason(models.Model):
 
 class Flag(models.Model):
     object_id = models.PositiveIntegerField()
-    content_type = models.ForeignKey(ContentType)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     content_object = GenericForeignKey("content_type", "object_id")
 
     _pre_save_status = None
     status = models.PositiveIntegerField(choices=FLAG_CHOICES, default=FLAGGED, db_index=True)
     created = models.DateTimeField(auto_now_add=True)
     reviewed = models.DateTimeField(null=True)
-    reviewer = models.ForeignKey(User, null=True)
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
 
     comment = models.CharField(max_length=300, blank=True)
 
@@ -63,13 +63,13 @@ class Flag(models.Model):
 
 class FlagInstance(models.Model):
     # when user flag a content
-    flag = models.ForeignKey(Flag, related_name='flags')
-    user = models.ForeignKey(User, null=True)
+    flag = models.ForeignKey(Flag, on_delete=models.CASCADE, related_name='flags')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     ip = models.GenericIPAddressField(null=True)
     datetime = models.DateTimeField(auto_now_add=True)
 
     # predefined reason
-    reason = models.ForeignKey(Reason, null=True)
+    reason = models.ForeignKey(Reason, on_delete=models.CASCADE, default=1, null=True)
     comment = models.CharField(max_length=300, blank=True, null=True)
 
     def __unicode__(self):

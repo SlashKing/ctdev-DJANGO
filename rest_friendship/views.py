@@ -13,7 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from api.serializers import FriendSerializer, UserSerializer
 from django.db.models import Q
-from hashtags.utils import notify_on_friend_request, notify_on_friend_accepted
+from chat.utils import notify_on_friend_request, notify_on_friend_accepted
 
 from .serializers import get_user_serializer, FriendshipRequestSerializer, FollowSerializer
 

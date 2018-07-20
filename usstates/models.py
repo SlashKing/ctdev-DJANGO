@@ -1,13 +1,12 @@
-from django.contrib.gis.db import models
+from django.contrib.gis.db.models import FloatField, CharField, MultiPolygonField, Model
 
-class UsStates(models.Model):
-    state = models.CharField(max_length=2)
-    name = models.CharField(max_length=24)
-    fips = models.CharField(max_length=2)
-    lon = models.FloatField()
-    lat = models.FloatField()
-    geom = models.MultiPolygonField(srid=4326)
-    objects = models.GeoManager()
+class UsStates(Model):
+    state = CharField(max_length=2)
+    name = CharField(max_length=24)
+    fips = CharField(max_length=2)
+    lon = FloatField()
+    lat = FloatField()
+    geom = MultiPolygonField(srid=4326)
     
     # Returns the string representation of the model.
     def __str__(self):              # __unicode__ on Python 2
