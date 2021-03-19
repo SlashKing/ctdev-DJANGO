@@ -34,7 +34,7 @@ django-tag-parser==3.1
 django-taggit==0.22.1
 django-treebeard==4.1.2
 django-webpack-loader==0.5.0
-djangorestframework==3.6.3
+djangorestframework==3.11.2
 djcommon==1.1.1
 GDAL==2.1.4
 gunicorn==19.7.1
