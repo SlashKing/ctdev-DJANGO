@@ -58,6 +58,6 @@ simplejson==3.11.1
 six==1.10.0
 Unidecode==0.4.21
 urllib3==1.22
-wagtail==1.11.1
+wagtail==2.11.6
 webencodings==0.5.1
 Willow==0.4
